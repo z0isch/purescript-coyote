@@ -1,0 +1,14 @@
+{
+  "name": "purescript-coyote",
+  "version": "1.0.0",
+  "description": "Purescript implementation of the game coyote",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "start": "parcel index.html"
+  },
+  "devDependencies": {
+    "firebase": "^5.2.0"
+  }
+}
