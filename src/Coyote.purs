@@ -3,14 +3,15 @@ module Coyote where
 import Prelude
 
 import Control.Monad.State (StateT, get, gets, modify_, runStateT)
+import Data.Array (any)
 import Data.Array as A
-import Data.Foldable (fold, foldM)
+import Data.Foldable (fold, foldM, for_)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List as L
-import Data.Map (Map, filter, insert, size, values)
+import Data.Map (Map, insert, size, values)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Monoid.Additive (Additive(..))
@@ -39,6 +40,8 @@ instance ordSpecialCard :: Ord SpeciaCard where
 data Card 
   = Feather Int
   | SpecialCard SpeciaCard
+instance eqCard :: Eq Card where
+  eq = genericEq
 derive instance genericCard :: Generic Card _
 instance showCard :: Show Card where
   show = genericShow
@@ -100,9 +103,6 @@ addPlayer :: GameState -> GameState
 addPlayer gs = gs
   { players= insert (size gs.players) initialPlayer gs.players
   }
-
-playersStillIngame :: GameState -> Map Player PlayerState
-playersStillIngame {players} = filter (\{coins} -> coins < 3) players
 
 nextPlayer :: GameState -> Player
 nextPlayer gs@{currentPlayer, players} = (currentPlayer + 1 + addBy) `mod` numPlayers
@@ -169,12 +169,44 @@ processTotal = do
         maxI = fromMaybe 0 $ L.elemIndex maxF feathers
         maxF = fromMaybe 0 $ maximum feathers
 
-makeMove :: GameState -> Move -> GameState
-makeMove gs (Bid bid) = gs
+makeMove :: Move -> StateT GameState Effect Unit
+makeMove (Bid bid) = modify_ \gs -> gs
   { currentBid= Just (Tuple gs.currentPlayer bid)
   , currentPlayer= nextPlayer gs
   }
-makeMove gs Coyote = gs
+makeMove Coyote = do
+  total <- processTotal
+  {players, currentBid, currentPlayer} <- get
+  let 
+    needsShuffled   = any (\{hand} -> any ((==) (SpecialCard Night)) hand) players
+    Tuple bidPl bid = (fromMaybe (Tuple currentPlayer 0) currentBid)
+    {loser,winner}  = if (bid <= total)
+                      then {loser: currentPlayer, winner: bidPl}
+                      else {loser: bidPl, winner: currentPlayer}
+  modify_ \g -> g
+    { players= map _{hand= []} $ M.update (\p -> Just p{coins= p.coins + 1}) loser g.players
+    , discardPile=  (A.concatMap _.hand (A.fromFoldable (M.values g.players))) <> g.discardPile
+    }
+  when needsShuffled do
+    shuffled <- (gets \g -> g.deck <> g.discardPile) >>= liftEffect <<< shuffle
+    modify_ _
+      { discardPile= []
+      , deck= shuffled
+      }
+  drawCards
+  modify_ \gs -> gs
+    { currentBid= Nothing
+    , currentPlayer= winner
+    }
+  where
+    drawCards = do
+      {players} <- get
+      let (pls :: Array (Tuple Player PlayerState)) = M.toUnfoldable players
+      for_  pls \(Tuple plNum pl) -> when (pl.coins < 3) do
+        c <- drawTop
+        modify_ \g -> g
+          { players= M.update (\p -> Just p{hand= A.singleton c}) plNum g.players
+          }
 
 shuffle :: forall a. Array a -> Effect (Array a)
 shuffle xs = do
