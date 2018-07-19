@@ -53,7 +53,7 @@ instance showMove :: Show Move where
 type Player = Int
 
 type PlayerState = 
-  { card :: Array Card
+  { hand :: Array Card
   , coins :: Int
   }
 
@@ -61,7 +61,7 @@ type GameState =
   { deck :: Array Card
   , discardPile :: Array Card
   , currentPlayer :: Player
-  , hands :: Map Player PlayerState
+  , players :: Map Player PlayerState
   , currentBid :: Maybe (Tuple Player Int)
   }
 
@@ -86,29 +86,30 @@ initialGame = do
     { deck: s
     , discardPile: mempty
     , currentPlayer: 0
-    , hands: mempty
+    , players: mempty
     , currentBid: Nothing
     }
 
 initialPlayer :: PlayerState
 initialPlayer =
-  { card: []
+  { hand: []
   , coins: 0
   }
 
 addPlayer :: GameState -> GameState
 addPlayer gs = gs
-  { hands= insert (size gs.hands) initialPlayer gs.hands
+  { players= insert (size gs.players) initialPlayer gs.players
   }
 
 playersStillIngame :: GameState -> Map Player PlayerState
-playersStillIngame {hands} = filter (\{coins} -> coins < 3) hands
+playersStillIngame {players} = filter (\{coins} -> coins < 3) players
 
 nextPlayer :: GameState -> Player
-nextPlayer gs@{currentPlayer, hands} = (currentPlayer + 1 + addBy) `mod` (size hands)
+nextPlayer gs@{currentPlayer, players} = (currentPlayer + 1 + addBy) `mod` numPlayers
   where
-    nextP = (currentPlayer + 1) `mod` (size hands)
-    looped = L.drop nextP (values hands) <> values hands
+    numPlayers = size players
+    nextP = (currentPlayer + 1) `mod` numPlayers
+    looped = L.drop nextP (values players) <> values players
     addBy = L.length $ L.takeWhile (\{coins} -> coins >= 3) looped
 
 bleh = runStateT processTotal
@@ -129,8 +130,8 @@ drawTop = do
 
 processTotal :: StateT GameState Effect Int
 processTotal = do
-  {hands} <- get
-  qProcessed <- processQ $ seperateCards $ M.toUnfoldable hands
+  {players} <- get
+  qProcessed <- processQ $ seperateCards $ M.toUnfoldable players
   allProcessed <- processNonQ $ sortSpecial qProcessed
   pure $ sum allProcessed
   where
@@ -138,7 +139,7 @@ processTotal = do
       Just (Additive pl) -> do
         c <- drawTop
         --Add this card to the persons hand
-        modify_ \st -> st{hands= M.update (\hs -> Just $ hs{card= c A.: hs.card}) pl st.hands}
+        modify_ \st -> st{players= M.update (\hs -> Just $ hs{hand= c A.: hs.hand}) pl st.players}
         case c of
           Feather x -> pure s{feather= x L.: s.feather }
           --This can't be a Question because there is only one in the deck
@@ -150,7 +151,7 @@ processTotal = do
     sortSpecial s= s{nonQ= L.sort s.nonQ}
     
     --Abusing the monoid instance of records
-    seperateCards = fold <<< A.concatMap (\(Tuple pl {card}) -> map (seperate pl) card)
+    seperateCards = fold <<< A.concatMap (\(Tuple pl {hand}) -> map (seperate pl) hand)
       where
         seperate _ (Feather x) = {feather: L.singleton x,nonQ: mempty,q: mempty}
         seperate pl (SpecialCard Question) = {feather: mempty,nonQ: mempty,q: Just (Additive pl)}
@@ -192,4 +193,4 @@ shuffle xs = do
       pure $ unsafePartial $ fromJust $ A.index mar i
 
 test1 :: GameState
-test1 = { currentBid: Nothing, currentPlayer: 0, deck: [(SpecialCard X2),(Feather 2),(Feather (-5)),(Feather 3),(SpecialCard Question),(Feather 15),(SpecialCard Night),(Feather 3),(Feather 4),(Feather 5),(Feather 5),(Feather 1),(Feather 3),(Feather 2),(Feather 4),(Feather 1),(Feather 4),(Feather (-10)),(SpecialCard MaxNeg),(Feather 20),(Feather 1),(Feather 3),(Feather 2),(Feather 2),(Feather 10),(Feather 5),(Feather 1),(Feather (-10)),(SpecialCard Max0),(Feather 15),(Feather (-5)),(Feather 10),(Feather 10),(Feather 5),(Feather 4)], discardPile: [], hands: (M.fromFoldable [(Tuple 0 { card: [Feather 5], coins: 0 }),(Tuple 1 { card: [Feather (-10)], coins: 0 }), (Tuple 2 { card: [SpecialCard Question], coins: 0 })]) }
+test1 = { currentBid: Nothing, currentPlayer: 0, deck: [(SpecialCard X2),(Feather 2),(Feather (-5)),(Feather 3),(SpecialCard Question),(Feather 15),(SpecialCard Night),(Feather 3),(Feather 4),(Feather 5),(Feather 5),(Feather 1),(Feather 3),(Feather 2),(Feather 4),(Feather 1),(Feather 4),(Feather (-10)),(SpecialCard MaxNeg),(Feather 20),(Feather 1),(Feather 3),(Feather 2),(Feather 2),(Feather 10),(Feather 5),(Feather 1),(Feather (-10)),(SpecialCard Max0),(Feather 15),(Feather (-5)),(Feather 10),(Feather 10),(Feather 5),(Feather 4)], discardPile: [], players: (M.fromFoldable [(Tuple 0 { hand: [Feather 5], coins: 0 }),(Tuple 1 { hand: [Feather (-10)], coins: 0 }), (Tuple 2 { hand: [SpecialCard Question], coins: 0 })]) }
