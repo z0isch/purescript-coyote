@@ -16,7 +16,10 @@
     "purescript-foreign": "^5.0.0",
     "purescript-halogen": "^4.0.0",
     "purescript-profunctor-lenses": "^4.0.0",
-    "purescript-now": "^4.0.0"
+    "purescript-now": "^4.0.0",
+    "purescript-options": "^4.0.0",
+    "purescript-uuid": "^5.0.0",
+    "purescript-simple-json": "^4.1.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0"

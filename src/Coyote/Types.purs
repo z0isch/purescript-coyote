@@ -1,16 +1,20 @@
-module Coyote where
+module Coyote.Types where
 
 import Prelude
 
+import Control.Monad.Except (except)
 import Control.Monad.State (StateT, get, gets, modify_, runStateT)
+import Coyote.UntaggedSumRep (untaggedSumRep)
 import Data.Array (any)
 import Data.Array as A
+import Data.Either (Either(..))
 import Data.Foldable (fold, foldM, for_, foldMap)
-import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep (class Generic, to)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List as L
+import Data.List.NonEmpty as NonEmpty
 import Data.Map (Map, insert, size, values)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
@@ -22,7 +26,9 @@ import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Random (randomInt)
 import Effect.Ref as Ref
+import Foreign (ForeignError(..))
 import Partial.Unsafe (unsafePartial, unsafePartialBecause)
+import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, write)
 
 data SpeciaCard
   = Question
@@ -37,6 +43,17 @@ instance showSpeciaCard :: Show SpeciaCard where
   show = genericShow
 instance ordSpecialCard :: Ord SpeciaCard where
   compare = genericCompare
+instance readForeignSpecialCard :: ReadForeign SpeciaCard where
+  readImpl f = do
+    readImpl f >>= case _ of
+      "Question" -> pure Question
+      "Max0" -> pure Max0
+      "MaxNeg" -> pure MaxNeg
+      "X2" -> pure X2
+      "Night" -> pure Night
+      s -> except $ Left $ NonEmpty.singleton $ ForeignError $ "Incorrect Special Card: " <> s
+instance writeForeignSpecialCard :: WriteForeign SpeciaCard where
+  writeImpl = write <<< show
 
 data Card 
   = Feather Int
@@ -46,7 +63,12 @@ instance eqCard :: Eq Card where
 derive instance genericCard :: Generic Card _
 instance showCard :: Show Card where
   show = genericShow
-
+instance readForeignCard :: ReadForeign Card where
+  readImpl f = to <$> untaggedSumRep f
+instance writeForeignCard :: WriteForeign Card where
+  writeImpl (SpecialCard s) = write $ show s
+  writeImpl (Feather s) = write s
+  
 data Move 
   = Bid Int
   | Coyote
