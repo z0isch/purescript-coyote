@@ -4,36 +4,31 @@ import Prelude
 
 import Data.Maybe (Maybe(..))
 import Effect.Aff (Aff)
-import Effect.Class.Console (log)
+import Effect.Console (logShow)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Web.QRCode (insertQRCode)
 
-type Input = 
-  { text :: String
-  }
+type Input = String
 
-type State = 
-  { input :: Input
-  }
+type State = Input
 
 data Query a 
   = Initialize a
-  | Finalize a
   | HandleInput Input a
 
 type Message = Void
 
 ui :: H.Component HH.HTML Query Input Message Aff
 ui =  H.lifecycleComponent
-    { initialState: \input -> {input}
+    { initialState: identity
     , render
     , eval
-    , initializer: Just (H.action Initialize)
-    , finalizer: Just (H.action Finalize)
     , receiver: HE.input HandleInput
+    , initializer: Just $ H.action Initialize
+    , finalizer: Nothing
     }
   where
     render :: State -> H.ComponentHTML Query
@@ -46,12 +41,13 @@ ui =  H.lifecycleComponent
       Initialize next -> do
         setHtml
         pure next
-      Finalize next -> pure next
       HandleInput i next -> do
-        H.modify_ _{ input = i }
+        H.put i
         setHtml
         pure next
-      where 
-        setHtml = H.getHTMLElementRef (H.RefLabel "qr-code") >>= case _ of
-          Nothing -> pure unit
-          Just el -> H.liftEffect $ insertQRCode el "yeah" 
+        where 
+          setHtml = do
+            t <- H.get
+            H.getHTMLElementRef (H.RefLabel "qr-code") >>= case _ of
+              Nothing -> pure unit
+              Just el -> H.liftEffect $ insertQRCode el t

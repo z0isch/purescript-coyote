@@ -87,7 +87,7 @@ ui = H.parentComponent
             [ HH.text $ show state
             , HH.a
               [ HP.href $ "#join/" <> id]
-              [ HH.slot unit QRCode.ui {text: "#join/" <> id} absurd ]
+              [ HH.slot unit QRCode.ui ("#join/" <> id) absurd ]
             ]
           else []
           

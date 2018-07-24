@@ -3,6 +3,7 @@
 var firebase = require("firebase/app");
 require("firebase/database");
 
+//Hot reload fix
 if (!firebase.apps.length) {
   firebase.initializeApp({
     apiKey: "AIzaSyD5jPEuT-cp8at22Xe_uqo2VDhFezFA6jM",
@@ -32,7 +33,6 @@ exports._write = function(id, json) {
           if (currVal.stateHash === json.stateHash) {
             return makeNew(json);
           } else {
-            console.log({ newVal: json, currVal: currVal });
             return;
           }
         }
