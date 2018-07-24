@@ -5,7 +5,6 @@ import Prelude
 import Coyote.Types (addPlayer, initialGame)
 import Coyote.Web.Types (WebGame, CoyoteCookie)
 import Data.Either (Either(..))
-import Data.Identity (Identity)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.UUID (genUUID)
@@ -113,10 +112,12 @@ ui = H.parentComponent
         H.modify_ _{cookie= Just cookie, game= Nothing}
         H.raise $ SubscribeToGame cookie
         gs <- addPlayer <$> H.liftEffect initialGame
+        stateHash <- H.liftEffect $ show <$> genUUID
         H.raise $ PushGameUpdate cookie
           { id: cookie.id
           , state: gs
           , playerMap: M.singleton cookie.userId 0
+          , stateHash
           }
         pure next
         

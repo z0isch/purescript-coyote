@@ -13,7 +13,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.UUID (genUUID)
 import Effect (Effect)
-import Effect.Aff (Aff, error, killFiber, launchAff, launchAff_, runAff, runAff_)
+import Effect.Aff (Aff, error, killFiber, launchAff, runAff_)
 import Effect.Aff.Lock (newLock, withLock)
 import Effect.Class.Console as Console
 import Effect.Ref as R
@@ -50,7 +50,6 @@ newCookie gId f = do
 main :: Effect Unit
 main = do
   
-  --Race condition inside of firebase, need some kind of db lock!
   getHash >>= match myRoute >>> case _ of
     Left err -> Console.error err
     Right (Join gId) -> do
@@ -59,7 +58,8 @@ main = do
         Just cookieE -> do
           case readJSON cookieE of
             Left err -> Console.error $ "Can't parse cookie: "<> show err
-            Right (cookie :: CoyoteCookie) -> if (cookie.id /= gId) 
+            Right (cookie :: CoyoteCookie) -> 
+              if (cookie.id /= gId) 
               then newCookie gId runHalogen
               else runHalogen
     _ -> runHalogen

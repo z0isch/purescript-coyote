@@ -14,12 +14,29 @@ if (!firebase.apps.length) {
   });
 }
 
+function makeNew(json) {
+  json.stateHash = require("uuid").v4();
+  return btoa(JSON.stringify(json));
+}
+
 exports._write = function(id, json) {
   return function() {
     firebase
       .database()
       .ref("game/" + id)
-      .set(btoa(JSON.stringify(json)));
+      .transaction(function(curr) {
+        if (curr === null) {
+          return makeNew(json);
+        } else {
+          var currVal = JSON.parse(atob(curr));
+          if (currVal.stateHash === json.stateHash) {
+            return makeNew(json);
+          } else {
+            console.log({ newVal: json, currVal: currVal });
+            return;
+          }
+        }
+      });
   };
 };
 

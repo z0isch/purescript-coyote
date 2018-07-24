@@ -7,7 +7,6 @@ import Data.Map (Map)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Tuple (Tuple(..))
-import Halogen.HTML (a)
 
 type TupleObj a b = {a :: a, b :: b}
 
@@ -24,12 +23,14 @@ type WebGame =
   { id :: GameId
   , playerMap :: Map UserId Player
   , state :: GameState
+  , stateHash :: String
   }
   
 type WebGameDTO = 
   { id :: GameId
   , playerMap :: Array (TupleObj UserId Player)
   , state :: GameStateDTO
+  , stateHash :: String
   }
   
 type RoundDTO = 
