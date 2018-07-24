@@ -22,7 +22,7 @@ import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import Routes (Routes(..), myRoute)
 import Routing (match)
-import Routing.Hash (getHash)
+import Routing.Hash (getHash, setHash)
 import Simple.JSON (readJSON, writeJSON)
 import Web.Cookies (getCookie, setCookie)
 import Web.Firebase (getGame, subscribeToGame, writeGame)
@@ -38,21 +38,24 @@ firebaseConsumer query = CR.consumer \game -> do
 newCookie :: String -> Effect Unit -> Effect Unit
 newCookie gId f = do
   userId <- show <$> genUUID
-  runAff_ (const f) $ getGame gId >>= case _ of
-    Nothing -> Console.error "Can't find that game!"
-    Just game -> H.liftEffect $ do
-      writeGame gId game
-        { state= addPlayer game.state
-        , playerMap= Map.insert userId (Map.size (game.state.players)) game.playerMap
-        }
-      setCookie cookieName (writeJSON {id:gId,userId}) Nothing
-  
+  runAff_ (const f) (tryJoinGame userId)
+  where
+    tryJoinGame userId = getGame gId >>= case _ of
+      Nothing -> Console.error "Can't find that game!"
+      Just game -> do
+        let newGame = game
+              { state= addPlayer game.state
+              , playerMap= Map.insert userId (Map.size (game.state.players)) game.playerMap
+              }
+        writeGame gId newGame (tryJoinGame userId)
+        H.liftEffect $ setCookie cookieName (writeJSON {id:gId,userId}) Nothing
+
 main :: Effect Unit
 main = do
-  
   getHash >>= match myRoute >>> case _ of
     Left err -> Console.error err
     Right (Join gId) -> do
+      setHash ""
       getCookie cookieName >>= case _ of
         Nothing -> newCookie gId runHalogen
         Just cookieE -> do
@@ -72,23 +75,23 @@ runHalogen = do
     b <- HA.awaitBody
     io <- runUI M.ui unit b
 
-    io.subscribe $ CR.consumer $ case _ of
-      M.UnsubscribeFromGame c -> withLock subscriptionLock do
-        H.liftEffect (R.read subscription) >>= case _ of
+    let killSub = H.liftEffect (R.read subscription) >>= case _ of
           Nothing -> pure unit
           Just fiber -> killFiber (error "Unsubscribing to game") fiber
+
+    io.subscribe $ CR.consumer $ case _ of
+      M.UnsubscribeFromGame c -> do
+        withLock subscriptionLock killSub
         pure Nothing
       M.PushGameUpdate c g-> do
-        H.liftEffect $ writeGame c.id g
+        writeGame c.id g $ io.query $ H.action M.UpdatedOldGameState
         pure Nothing
       M.SubscribeToGame c -> do
-        withLock subscriptionLock do
-          H.liftEffect (R.read subscription) >>= case _ of
-            Nothing -> pure unit
-            Just fiber -> killFiber (error "Unsubscribing to game") fiber
+        withLock subscriptionLock $ do
+          killSub
           fiber <- H.liftEffect $ launchAff $ CR.runProcess (firebaseProducer c.id CR.$$ firebaseConsumer io.query)
           H.liftEffect $ R.write (Just fiber) subscription
-          pure Nothing
+        pure Nothing
 
     io.query $ H.action $ M.Initialize
     

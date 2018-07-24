@@ -20,15 +20,13 @@ type CoyoteCookie =
   }
 
 type WebGame = 
-  { id :: GameId
-  , playerMap :: Map UserId Player
+  { playerMap :: Map UserId Player
   , state :: GameState
   , stateHash :: String
   }
   
 type WebGameDTO = 
-  { id :: GameId
-  , playerMap :: Array (TupleObj UserId Player)
+  { playerMap :: Array (TupleObj UserId Player)
   , state :: GameStateDTO
   , stateHash :: String
   }

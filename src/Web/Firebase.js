@@ -15,40 +15,43 @@ if (!firebase.apps.length) {
   });
 }
 
-function makeNew(json) {
-  json.stateHash = require("uuid").v4();
-  return btoa(JSON.stringify(json));
-}
-
 exports._write = function(id, json) {
   return function() {
-    firebase
-      .database()
-      .ref("game/" + id)
-      .transaction(function(curr) {
-        if (curr === null) {
-          return makeNew(json);
-        } else {
-          var currVal = JSON.parse(atob(curr));
-          if (currVal.stateHash === json.stateHash) {
-            return makeNew(json);
+    return new Promise(function(resolve, reject) {
+      firebase
+        .database()
+        .ref("game/" + id)
+        .transaction(function(curr) {
+          if (curr === null) {
+            resolve();
+            return btoa(JSON.stringify(json));
           } else {
-            return;
+            var currVal = JSON.parse(atob(curr));
+            if (currVal.stateHash === json.stateHash) {
+              resolve();
+              json.stateHash = require("uuid").v4();
+              return btoa(JSON.stringify(json));
+            } else {
+              reject();
+              return;
+            }
           }
-        }
-      });
+        });
+    });
   };
 };
 
 exports._get = function(id) {
-  return new Promise(function(resolve, reject) {
-    firebase
-      .database()
-      .ref("game/" + id)
-      .once("value", function(s) {
-        resolve(JSON.parse(atob(s.val())));
-      });
-  });
+  return function() {
+    return new Promise(function(resolve, reject) {
+      firebase
+        .database()
+        .ref("game/" + id)
+        .once("value", function(s) {
+          resolve(JSON.parse(atob(s.val())));
+        });
+    });
+  };
 };
 
 exports._subscribe = function(id, f) {

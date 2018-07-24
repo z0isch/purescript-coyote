@@ -2,6 +2,7 @@ module Components.Main where
 
 import Prelude
 
+import Components.QRCode as QRCode
 import Coyote.Types (addPlayer, initialGame)
 import Coyote.Web.Types (WebGame, CoyoteCookie)
 import Data.Either (Either(..))
@@ -16,7 +17,9 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Simple.JSON (readJSON, writeJSON)
 import Web.Cookies (deleteCookie, getCookie, setCookie)
-import Components.QRCode as QRCode
+import Web.HTML (window)
+import Web.HTML.Location (href)
+import Web.HTML.Window (location)
 
 cookieName :: String
 cookieName = "coyote-game"
@@ -25,6 +28,8 @@ type State =
   { cookie :: Maybe CoyoteCookie
   , game :: Maybe WebGame
   , showingHand :: Boolean
+  , baseUrl :: String
+  , updatedOldGameState :: Boolean
   }
   
 data Query a 
@@ -33,6 +38,8 @@ data Query a
   | GameUpdate WebGame a
   | ExitGame a
   | ToggleHand a
+  | UpdatedOldGameState a
+  | DismissUpdatedOldGameState a
 
 type Input = Unit
 
@@ -56,6 +63,8 @@ ui = H.parentComponent
       { cookie: Nothing
       , game: Nothing
       , showingHand: false
+      , baseUrl: ""
+      , updatedOldGameState: false
       }
 
     render :: State -> H.ParentHTML Query (QRCode.Query) Slot Aff
@@ -65,7 +74,7 @@ ui = H.parentComponent
         [ HH.pre_ [HH.text $ show s]
         ]
       ] <> 
-      [ fromMaybe notInGame (inGame s.showingHand <$> s.cookie <*> s.game) ]
+      [ fromMaybe notInGame (inGame s.showingHand s.baseUrl <$> s.cookie <*> s.game) ]
 
     notInGame = HH.p_
       [ HH.button 
@@ -73,7 +82,7 @@ ui = H.parentComponent
         [ HH.text "Start new game"]
       ]
       
-    inGame showingHand {userId,id} {playerMap,state} = case M.lookup userId playerMap of 
+    inGame showingHand baseUrl {userId,id} {playerMap,state} = case M.lookup userId playerMap of 
       Nothing -> HH.p_ []
       Just player -> HH.p_ $
         [ HH.button 
@@ -86,8 +95,8 @@ ui = H.parentComponent
           then 
             [ HH.text $ show state
             , HH.a
-              [ HP.href $ "#join/" <> id]
-              [ HH.slot unit QRCode.ui ("#join/" <> id) absurd ]
+              [ HP.href $ baseUrl <> "#join/" <> id]
+              [ HH.slot unit QRCode.ui (baseUrl <> "#join/" <> id) absurd ]
             ]
           else []
           
@@ -95,6 +104,8 @@ ui = H.parentComponent
     eval :: Query ~> H.ParentDSL State Query (QRCode.Query) Slot Message Aff
     eval = case _ of
       Initialize next -> do
+        loc <- H.liftEffect $ window >>= location >>= href
+        H.modify_ _{baseUrl= loc}
         H.liftEffect (getCookie cookieName) >>= case _ of
           Nothing -> pure unit
           Just cookieE -> do
@@ -114,8 +125,7 @@ ui = H.parentComponent
         gs <- addPlayer <$> H.liftEffect initialGame
         stateHash <- H.liftEffect $ show <$> genUUID
         H.raise $ PushGameUpdate cookie
-          { id: cookie.id
-          , state: gs
+          { state: gs
           , playerMap: M.singleton cookie.userId 0
           , stateHash
           }
@@ -128,7 +138,11 @@ ui = H.parentComponent
           Just c -> do
             H.liftEffect $ deleteCookie cookieName
             H.raise $ UnsubscribeFromGame c
-            H.modify_ $ const initialState
+            H.modify_ _
+              { cookie= Nothing
+              , game= Nothing
+              , showingHand= false
+              }
         pure next
       
       ToggleHand next -> do
@@ -137,4 +151,12 @@ ui = H.parentComponent
 
       GameUpdate g next -> do
         H.modify_ _{game= Just g}
+        pure next
+
+      UpdatedOldGameState next -> do
+        H.modify_ _{updatedOldGameState= true}
+        pure next
+        
+      DismissUpdatedOldGameState next -> do
+        H.modify_ _{updatedOldGameState= false}
         pure next
