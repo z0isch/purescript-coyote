@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "firebase": "^5.2.0",
+    "lodash": "^4.17.10",
     "qrcode": "^1.2.0",
     "text-encoding": "^0.6.4",
     "uuid": "^3.3.2",

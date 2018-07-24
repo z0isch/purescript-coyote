@@ -2,6 +2,7 @@
 
 var firebase = require("firebase/app");
 require("firebase/database");
+var _ = require("lodash");
 
 //Hot reload fix
 if (!firebase.apps.length) {
@@ -15,22 +16,32 @@ if (!firebase.apps.length) {
   });
 }
 
-exports._write = function(id, json) {
+exports._new = function(id, json) {
   return function() {
+    firebase
+      .database()
+      .ref("game/" + id)
+      .set(btoa(JSON.stringify(json)));
+  };
+};
+
+exports._update = function(id, json) {
+  return function() {
+    var newJson = _.cloneDeep(json);
+
     return new Promise(function(resolve, reject) {
       firebase
         .database()
         .ref("game/" + id)
         .transaction(function(curr) {
           if (curr === null) {
-            resolve();
-            return btoa(JSON.stringify(json));
+            return btoa(JSON.stringify(newJson));
           } else {
             var currVal = JSON.parse(atob(curr));
             if (currVal.stateHash === json.stateHash) {
               resolve();
-              json.stateHash = require("uuid").v4();
-              return btoa(JSON.stringify(json));
+              newJson.stateHash = require("uuid").v4();
+              return btoa(JSON.stringify(newJson));
             } else {
               reject();
               return;

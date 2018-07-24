@@ -14,8 +14,9 @@ import Effect.Class.Console (error)
 import Foreign (Foreign)
 import Simple.JSON (read, write)
 
+foreign import _new :: Fn2 String Foreign (Effect Unit)
 foreign import _subscribe :: Fn2 String (Foreign -> Effect Unit) (Effect Unit)
-foreign import _write :: Fn2 String Foreign (Effect (Promise Unit))
+foreign import _update :: Fn2 String Foreign (Effect (Promise Unit))
 foreign import _get :: String -> (Effect (Promise Foreign))
 
 subscribeToGame :: GameId -> (WebGame -> Effect Unit) -> Effect Unit
@@ -24,9 +25,12 @@ subscribeToGame gId f = runFn2 _subscribe gId \msg -> do
     Left err -> error $ "Can't decode json webgame with: " <> show err
     Right game -> f (toWebGame game)
 
-writeGame :: GameId -> WebGame -> Aff Unit -> Aff Unit
-writeGame gId s f = do
-  promise <- liftEffect (runFn2 _write gId (write (fromWebGame s))) 
+newGame :: GameId -> WebGame -> Effect Unit
+newGame gId s = runFn2 _new gId (write (fromWebGame s))
+
+updateGame :: GameId -> WebGame -> Aff Unit -> Aff Unit
+updateGame gId s f = do
+  promise <- liftEffect (runFn2 _update gId (write (fromWebGame s))) 
   attempt (toAff promise) >>= case _ of
     Left _ -> f
     Right _ -> pure unit

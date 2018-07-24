@@ -25,7 +25,7 @@ import Routing (match)
 import Routing.Hash (getHash, setHash)
 import Simple.JSON (readJSON, writeJSON)
 import Web.Cookies (getCookie, setCookie)
-import Web.Firebase (getGame, subscribeToGame, writeGame)
+import Web.Firebase (getGame, newGame, subscribeToGame, updateGame)
 
 firebaseProducer :: GameId -> CR.Producer WebGame Aff Unit
 firebaseProducer gId = CRA.produce $ subscribeToGame gId <<< CRA.emit
@@ -47,7 +47,7 @@ newCookie gId f = do
               { state= addPlayer game.state
               , playerMap= Map.insert userId (Map.size (game.state.players)) game.playerMap
               }
-        writeGame gId newGame (tryJoinGame userId)
+        updateGame gId newGame (tryJoinGame userId)
         H.liftEffect $ setCookie cookieName (writeJSON {id:gId,userId}) Nothing
 
 main :: Effect Unit
@@ -83,8 +83,8 @@ runHalogen = do
       M.UnsubscribeFromGame c -> do
         withLock subscriptionLock killSub
         pure Nothing
-      M.PushGameUpdate c g-> do
-        writeGame c.id g $ io.query $ H.action M.UpdatedOldGameState
+      M.PushNewGame c g-> do
+        H.liftEffect $ newGame c.id g
         pure Nothing
       M.SubscribeToGame c -> do
         withLock subscriptionLock $ do

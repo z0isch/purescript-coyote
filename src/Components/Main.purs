@@ -45,7 +45,7 @@ type Input = Unit
 
 data Message 
   = SubscribeToGame CoyoteCookie
-  | PushGameUpdate CoyoteCookie WebGame
+  | PushNewGame CoyoteCookie WebGame
   | UnsubscribeFromGame CoyoteCookie
 
 type Slot = Unit
@@ -94,11 +94,12 @@ ui = H.parentComponent
         ] <> if showingHand 
           then 
             [ HH.text $ show state
-            , HH.a
+            ]
+          else 
+            [ HH.a
               [ HP.href $ baseUrl <> "#join/" <> id]
               [ HH.slot unit QRCode.ui (baseUrl <> "#join/" <> id) absurd ]
             ]
-          else []
           
           
     eval :: Query ~> H.ParentDSL State Query (QRCode.Query) Slot Message Aff
@@ -124,7 +125,7 @@ ui = H.parentComponent
         H.raise $ SubscribeToGame cookie
         gs <- addPlayer <$> H.liftEffect initialGame
         stateHash <- H.liftEffect $ show <$> genUUID
-        H.raise $ PushGameUpdate cookie
+        H.raise $ PushNewGame cookie
           { state: gs
           , playerMap: M.singleton cookie.userId 0
           , stateHash
