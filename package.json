@@ -6,7 +6,8 @@
   "author": "",
   "license": "ISC",
   "scripts": {
-    "start": "parcel index.html"
+    "start": "parcel index.html",
+    "build": "parcel build index.js --out-dir build"
   },
   "devDependencies": {
     "firebase": "^5.2.0",
