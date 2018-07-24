@@ -23,6 +23,17 @@ exports._write = function(id, json) {
   };
 };
 
+exports._get = function(id) {
+  return new Promise(function(resolve, reject) {
+    firebase
+      .database()
+      .ref("game/" + id)
+      .once("value", function(s) {
+        resolve(JSON.parse(atob(s.val())));
+      });
+  });
+};
+
 exports._subscribe = function(id, f) {
   return function() {
     firebase
