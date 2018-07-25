@@ -38,7 +38,7 @@ foreign import _setCookie :: forall value opts. String -> value -> opts -> Effec
 foreign import _getCookie :: forall value. String -> Effect (Array value)
 
 -- |  Get cookie with specified name.
-getCookie :: forall value. String -> Effect (Maybe value)
+getCookie :: String -> Effect (Maybe String)
 getCookie key = do
     cook <- _getCookie key
     prepare cook
