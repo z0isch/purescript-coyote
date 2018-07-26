@@ -8,18 +8,8 @@
 
   <body>
     <div id='coyote'></div>
+    <div id='vid'></div>
     <script src="./index.js"></script>
-    <script src="./build/NoSleep.min.js"></script>
-    <script>
-      function enableNoSleep() {
-        var noSleep = new NoSleep();
-        noSleep.enable();
-        document.removeEventListener("touchstart", enableNoSleep, false);
-        document.removeEventListener("click", enableNoSleep, false);
-      }
-      document.addEventListener("click", enableNoSleep, false);
-      document.addEventListener("touchstart", enableNoSleep, false);
-    </script>
   </body>
 
 </html>
