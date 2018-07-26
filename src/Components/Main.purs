@@ -10,14 +10,14 @@ import Data.Functor.Coproduct.Nested (Coproduct2)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.Utils (endsWith)
-import Effect.Aff (Aff, Milliseconds(..), delay, forkAff)
-import Effect.Class.Console (log, logShow)
-import Halogen (HalogenF(..), liftAff)
+import Effect.Aff (Aff, Milliseconds(..), delay)
+import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1, cp2)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Web.NoSleep as NoSleep
 
 type State = 
   { input :: Input
@@ -114,6 +114,7 @@ ui = H.parentComponent
 
       NewGameClick next -> do
         H.raise CreateNewGame
+        H.liftEffect NoSleep._enable
         pure next
         
       ExitGame next -> do
