@@ -114,7 +114,6 @@ ui = H.parentComponent
 
       NewGameClick next -> do
         H.raise CreateNewGame
-        H.liftEffect NoSleep._enable
         pure next
         
       ExitGame next -> do
