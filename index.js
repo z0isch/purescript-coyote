@@ -26,5 +26,6 @@ noSleepVideo.addEventListener("timeupdate", function(e) {
 });
 document.getElementById("vid").appendChild(noSleepVideo);
 
-document.addEventListener("click", enableNoSleep, false);
-document.addEventListener("touchstart", enableNoSleep, false);
+document
+  .getElementById("nosleep")
+  .addEventListener("click", enableNoSleep, false);
