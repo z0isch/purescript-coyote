@@ -20,6 +20,7 @@ function enableNoSleep() {
       noSleepVideo.currentTime = Math.random();
     }
   });
+  console.log("yoo!");
   noSleepVideo.play();
   document.removeEventListener("touchstart", enableNoSleep, false);
   document.removeEventListener("click", enableNoSleep, false);
