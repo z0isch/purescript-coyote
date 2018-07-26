@@ -1,3 +1,5 @@
+"use strict";
+
 var noSleepVideo = document.createElement("video");
 
 noSleepVideo.setAttribute("title", "No Sleep");

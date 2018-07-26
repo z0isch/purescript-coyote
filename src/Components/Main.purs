@@ -17,8 +17,6 @@ import Halogen.Component.ChildPath (cp1, cp2)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Web.NoSleep (_enable)
-
 
 type State = 
   { input :: Input
@@ -115,7 +113,6 @@ ui = H.parentComponent
 
       NewGameClick next -> do
         H.raise CreateNewGame
-        H.liftEffect _enable
         pure next
         
       ExitGame next -> do
