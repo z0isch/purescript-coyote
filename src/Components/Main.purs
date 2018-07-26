@@ -10,9 +10,9 @@ import Data.Functor.Coproduct.Nested (Coproduct2)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.Utils (endsWith)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, Milliseconds(..), delay, forkAff)
 import Effect.Class.Console (log, logShow)
-import Halogen (HalogenF(..))
+import Halogen (HalogenF(..), liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1, cp2)
 import Halogen.HTML as HH
@@ -24,6 +24,7 @@ type State =
   , game :: Maybe WebGame
   , showingHand :: Boolean
   , updatedOldGameState :: Boolean
+  , countdownToShowHand :: Maybe Int
   }
   
 data Query a 
@@ -63,6 +64,7 @@ ui = H.parentComponent
       , game: Nothing
       , showingHand: false
       , updatedOldGameState: false
+      , countdownToShowHand: Nothing
       }
 
     render :: State -> H.ParentHTML Query ChildQuery ChildSlot Aff
@@ -120,7 +122,14 @@ ui = H.parentComponent
         pure next
       
       ToggleHand next -> do
-        H.modify_ \s -> s{showingHand= not s.showingHand}
+        _ <- H.fork do
+          H.modify_ _{countdownToShowHand= Just 3}
+          liftAff $ delay $ Milliseconds 1000.0 
+          H.modify_ _{countdownToShowHand= Just 2}
+          liftAff $ delay $ Milliseconds 1000.0 
+          H.modify_ _{countdownToShowHand= Just 1}
+          liftAff $ delay $ Milliseconds 1000.0 
+          H.modify_ \s -> s{showingHand= not s.showingHand, countdownToShowHand= Nothing}
         pure next
 
       GameUpdate g next -> do
