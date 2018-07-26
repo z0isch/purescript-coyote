@@ -21,7 +21,8 @@
     "purescript-uuid": "^5.0.0",
     "purescript-simple-json": "^4.1.0",
     "purescript-avar": "^3.0.0",
-    "purescript-routing": "^8.0.0"
+    "purescript-routing": "^8.0.0",
+    "purescript-stringutils": "^0.0.8"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0"

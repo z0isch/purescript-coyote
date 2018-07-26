@@ -12,10 +12,12 @@
   "devDependencies": {
     "firebase": "^5.2.0",
     "lodash": "^4.17.10",
+    "node-sass": "^4.9.2",
     "qrcode": "^1.2.0",
     "text-encoding": "^0.6.4",
     "uuid": "^3.3.2",
-    "uuid-validate": "0.0.3"
+    "uuid-validate": "0.0.3",
+    "zingtouch": "^1.0.6"
   },
   "dependencies": {}
 }

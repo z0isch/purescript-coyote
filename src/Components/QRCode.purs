@@ -31,7 +31,7 @@ ui =  H.lifecycleComponent
     }
   where
     render :: State -> H.ComponentHTML Query
-    render s = HH.a 
+    render s = HH.div 
       [ HP.ref (H.RefLabel "qr-code") ]
       []
 

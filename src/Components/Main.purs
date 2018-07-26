@@ -3,17 +3,21 @@ module Components.Main where
 import Prelude
 
 import Components.QRCode as QRCode
+import Components.Zingtouch as Zingtouch
 import Coyote.Web.Types (WebGame, CoyoteCookie)
+import Data.Either.Nested (Either2)
+import Data.Functor.Coproduct.Nested (Coproduct2)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String.Utils (endsWith)
 import Effect.Aff (Aff)
+import Effect.Class.Console (log, logShow)
+import Halogen (HalogenF(..))
 import Halogen as H
+import Halogen.Component.ChildPath (cp1, cp2)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-
-cookieName :: String
-cookieName = "coyote-game"
 
 type State = 
   { input :: Input
@@ -30,6 +34,7 @@ data Query a
   | UpdatedOldGameState a
   | DismissUpdatedOldGameState a
   | HandleInput Input a
+  | HandleZingtouch Zingtouch.Message a
 
 type Input = 
   { cookie :: Maybe CoyoteCookie
@@ -37,11 +42,12 @@ type Input =
   }
 
 data Message 
-  = SubscribeToGame CoyoteCookie
-  | UnsubscribeFromGame
+  = UnsubscribeFromGame
   | CreateNewGame
+  | ZingtouchMessage Zingtouch.Message
 
-type Slot = Unit
+type ChildQuery = Coproduct2 QRCode.Query Zingtouch.Query
+type ChildSlot = Either2 Unit Unit
 
 ui :: H.Component HH.HTML Query Input Message Aff
 ui = H.parentComponent
@@ -59,7 +65,7 @@ ui = H.parentComponent
       , updatedOldGameState: false
       }
 
-    render :: State -> H.ParentHTML Query (QRCode.Query) Slot Aff
+    render :: State -> H.ParentHTML Query ChildQuery ChildSlot Aff
     render s = HH.div 
       [HP.classes [H.ClassName "container-fluid"]] $
       [ HH.p_ 
@@ -89,11 +95,15 @@ ui = H.parentComponent
             ]
           else 
             [ HH.a
-              [ HP.href $ baseUrl <> "#join/" <> id]
-              [ HH.slot unit QRCode.ui (baseUrl <> "#join/" <> id) absurd ]
+              [ HP.href url ]
+              [ HH.slot' cp1 unit QRCode.ui url absurd ]
+            , HH.slot' cp2 unit Zingtouch.ui unit (HE.input HandleZingtouch)
             ]
-          
-    eval :: Query ~> H.ParentDSL State Query (QRCode.Query) Slot Message Aff
+      where 
+        url = let prefix = if baseUrl `endsWith` "#" then "" else "#"
+              in prefix <> "join/" <> id
+
+    eval :: Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Aff
     eval = case _ of
 
       HandleInput i next -> do
@@ -106,7 +116,7 @@ ui = H.parentComponent
         
       ExitGame next -> do
         H.raise UnsubscribeFromGame
-        H.modify_ _{game= Nothing}
+        H.modify_ _{game= Nothing, showingHand= false}
         pure next
       
       ToggleHand next -> do
@@ -123,4 +133,8 @@ ui = H.parentComponent
         
       DismissUpdatedOldGameState next -> do
         H.modify_ _{updatedOldGameState= false}
+        pure next
+
+      HandleZingtouch msg next -> do
+        H.raise $ ZingtouchMessage msg
         pure next
