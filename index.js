@@ -1,12 +1,10 @@
 //Hot reload fix
-document.body.innerHTML = "";
-require("./css/main.scss");
-require("./output/Main").main();
+if (document.getElementById("coyote") !== null) {
+  document.getElementById("coyote").innerHTML = "";
+}
 
-var enabled = false;
 function enableNoSleep() {
   if (!enabled) {
-    enabled = true;
     var NoSleep = require("nosleep.js");
     var noSleep = new NoSleep();
     noSleep.enable();
@@ -16,3 +14,6 @@ function enableNoSleep() {
 }
 document.addEventListener("click", enableNoSleep, false);
 document.addEventListener("touchstart", enableNoSleep, false);
+
+require("./css/main.scss");
+require("./output/Main").main();

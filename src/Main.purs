@@ -26,6 +26,7 @@ import Routing (match)
 import Routing.Hash (getHash, setHash)
 import Simple.JSON (read, readJSON, writeJSON)
 import Web.Cookies (deleteCookie, getCookie, setCookie)
+import Web.DOM.ParentNode (QuerySelector(..))
 import Web.Firebase (getGame, newGame, subscribeToGame, updateGame)
 import Web.HTML (window)
 import Web.HTML.Location (href)
@@ -123,14 +124,17 @@ runHalogen = HA.runHalogenAff do
           pure Nothing
         (Just (Right cookie)) -> pure $ Just cookie
     
-    b <- HA.awaitBody
-    io <- runUI M.ui {cookie,baseUrl} b
+    _ <- HA.awaitBody
+    HA.selectElement (QuerySelector "#coyote") >>= case _ of
+      Nothing -> Console.error "Can't find div"
+      Just el -> do
+        io <- runUI M.ui {cookie,baseUrl} el
     
-    io.subscribe $ CR.consumer $ processMsgs sub baseUrl io.query
-    
-    case cookie of
-      Nothing -> pure unit
-      Just c -> subToGame sub io.query c.id
+        io.subscribe $ CR.consumer $ processMsgs sub baseUrl io.query
+        
+        case cookie of
+          Nothing -> pure unit
+          Just c -> subToGame sub io.query c.id
 
 main :: Effect Unit
 main = do
