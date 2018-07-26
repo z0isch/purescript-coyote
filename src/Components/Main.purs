@@ -17,7 +17,7 @@ import Halogen.Component.ChildPath (cp1, cp2)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Web.NoSleep as NoSleep
+
 
 type State = 
   { input :: Input
