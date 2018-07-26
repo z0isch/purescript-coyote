@@ -6,8 +6,8 @@ if (document.getElementById("coyote") !== null) {
 var noSleepVideo = document.createElement("video");
 noSleepVideo.setAttribute("title", "No Sleep");
 noSleepVideo.setAttribute("playsinline", "");
-noSleepVideo.setAttribute("width", "1");
-noSleepVideo.setAttribute("height", "1");
+noSleepVideo.setAttribute("width", "20");
+noSleepVideo.setAttribute("height", "20");
 noSleepVideo.setAttribute("autoplay", "");
 // noSleepVideo.setAttribute(
 //   "src",
