@@ -33,6 +33,8 @@ import Web.HTML (window)
 import Web.HTML.Location (href)
 import Web.HTML.Window (location)
 
+foreign import _fullScreen :: Effect Unit
+
 type Sub = 
   { fiber :: Ref (Maybe (Fiber Unit))
   , lock :: Lock
@@ -99,7 +101,7 @@ tryMakeMove :: CoyoteCookie -> Simple.Move -> WebGame (Simple.GameState) -> Aff 
 tryMakeMove c mv game = do
   newState <- H.liftEffect $ execStateT (Simple.makeMove mv) game.state
   updateGame c.id game{state= newState} SimpleWeb.fromWebGame SimpleWeb.toWebGame (tryMakeMove c mv)
-  
+
 callCoyote :: CoyoteCookie -> Effect Unit
 callCoyote c = launchAff_ $ getGame c.id SimpleWeb.toWebGame >>= case _ of
   Nothing -> Console.error "Can't find that game!"
@@ -167,6 +169,7 @@ main = do
               then joinAndSetCookie gId
               else runHalogen
     _ -> runHalogen
+  _fullScreen
 
 joinAndSetCookie :: String -> Effect Unit
 joinAndSetCookie gId = do
