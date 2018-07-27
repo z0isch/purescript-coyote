@@ -76,8 +76,7 @@ ui = H.parentComponent
     render :: State -> H.ParentHTML Query ChildQuery ChildSlot Aff
     render s = HH.div 
       [HP.classes [H.ClassName "container-fluid"]] $
-      [ 
-        -- HH.p_ 
+      [ -- HH.p_ 
         --   [ HH.pre_ [HH.text $ maybe "" (show <<< _.state.discardPile) s.game]
         --   ]
       ] <> 
@@ -224,8 +223,7 @@ ui = H.parentComponent
         myCard pl = case M.lookup pl state.players of
           Nothing -> ""
           Just {hand} -> maybe "" showCard $ A.head hand
-        url = let prefix = if baseUrl `endsWith` "#" then String.take (String.length baseUrl - 1) baseUrl else baseUrl
-              in prefix <> "#join/" <> id
+        url = String.takeWhile (not <<< (==) (String.codePointFromChar '#')) baseUrl <> "#join/" <> id
 
     eval :: Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Aff
     eval = case _ of
