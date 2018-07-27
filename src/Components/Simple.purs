@@ -51,7 +51,7 @@ data Message
   = UnsubscribeFromGame
   | CreateNewGame
   | DrawCard CoyoteCookie
-  | CoyoteCall CoyoteCookie
+  | CallCoyote CoyoteCookie
 
 type ChildQuery = Coproduct1 QRCode.Query
 type ChildSlot = Either1 Unit
@@ -246,7 +246,7 @@ ui = H.parentComponent
         case s.input.cookie of
           Nothing -> pure next
           Just c -> do
-            H.raise $ CoyoteCall c
+            H.raise $ CallCoyote c
             H.modify_ _{showingHand= false}
             pure next
       
@@ -268,10 +268,13 @@ ui = H.parentComponent
 
       GameUpdate new next -> do
         {game} <- H.get
+        
         case game of
           Nothing -> pure unit
+          --Someone called Coyote!
           Just oldGame -> when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) do
             H.modify_ _{showingHand= false}
+
         H.modify_ _{game= Just new}
         pure next
 
