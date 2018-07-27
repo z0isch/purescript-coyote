@@ -258,12 +258,12 @@ ui = H.parentComponent
           Just c -> do
             H.raise $ DrawCard c
             _ <- H.fork do
-              -- H.modify_ _{countdownToShowHand= Just 3}
-              -- liftAff $ delay $ Milliseconds 1000.0 
-              -- H.modify_ _{countdownToShowHand= Just 2}
-              -- liftAff $ delay $ Milliseconds 1000.0 
-              -- H.modify_ _{countdownToShowHand= Just 1}
-              -- liftAff $ delay $ Milliseconds 1000.0 
+              H.modify_ _{countdownToShowHand= Just 3}
+              liftAff $ delay $ Milliseconds 1000.0 
+              H.modify_ _{countdownToShowHand= Just 2}
+              liftAff $ delay $ Milliseconds 1000.0 
+              H.modify_ _{countdownToShowHand= Just 1}
+              liftAff $ delay $ Milliseconds 1000.0 
               H.modify_ _{showingHand= true, countdownToShowHand= Nothing}
             pure next
 
