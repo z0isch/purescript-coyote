@@ -32,6 +32,7 @@ import Web.Firebase (getGame, newGame, subscribeToGame, updateGame)
 import Web.HTML (window)
 import Web.HTML.Location (href)
 import Web.HTML.Window (location)
+import Data.Array as A
 
 type Sub = 
   { fiber :: Ref (Maybe (Fiber Unit))
@@ -74,7 +75,13 @@ processMsgs sub baseUrl query = case _ of
     query $ H.action $ SimpleComponent.HandleInput {cookie: Nothing, baseUrl}
     pure Nothing
   SimpleComponent.DrawCard c -> do
-    H.liftEffect $ drawCard c
+    getGame c.id SimpleWeb.toWebGame >>= case _ of
+      Nothing -> Console.error "Can't find that game!"
+      Just game -> case Map.lookup c.userId game.playerMap of
+        Nothing -> Console.error "You're not in that game"
+        Just pl -> case Map.lookup pl game.state.players of
+          Nothing -> Console.error "You're not in that game"
+          Just {hand} -> when (A.null hand) $ H.liftEffect $ drawCard c
     pure Nothing
   SimpleComponent.CoyoteCall c -> do
     H.liftEffect $ callCoyote c
