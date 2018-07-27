@@ -6,7 +6,7 @@
   "author": "",
   "license": "ISC",
   "scripts": {
-    "start": "parcel index.html",
+    "dev": "parcel index.html",
     "build": "parcel build index.js --out-dir build"
   },
   "devDependencies": {
@@ -19,5 +19,7 @@
     "uuid": "^3.3.2",
     "uuid-validate": "0.0.3"
   },
-  "dependencies": {}
+  "dependencies": {
+    "dotenv": "^6.0.0"
+  }
 }

@@ -5,7 +5,7 @@ import Prelude
 import Components.Simple as SimpleComponent
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA
-import Control.Monad.State (execState, execStateT, runStateT)
+import Control.Monad.State (execStateT)
 import Coyote.Simple as Simple
 import Coyote.Web.Simple as SimpleWeb
 import Coyote.Web.Types (CoyoteCookie, GameId, WebGame)

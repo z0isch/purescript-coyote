@@ -35,7 +35,6 @@ data Move
 addPlayer :: GameState -> GameState
 addPlayer gs = gs
   { players= M.insert (M.size gs.players) {hand:mempty} gs.players
-
   }
 
 initialGame :: Effect GameState
