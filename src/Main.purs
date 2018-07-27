@@ -2,11 +2,12 @@ module Main where
 
 import Prelude
 
-import Components.Main as M
-import Components.Zingtouch as Z
+import Components.Simple as SimpleComponent
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA
-import Coyote.Types (addPlayer, initialGame)
+import Control.Monad.State (execState, execStateT, runStateT)
+import Coyote.Simple as Simple
+import Coyote.Web.Simple as SimpleWeb
 import Coyote.Web.Types (CoyoteCookie, GameId, WebGame)
 import Data.Either (Either(..))
 import Data.Map as Map
@@ -24,14 +25,13 @@ import Halogen.VDom.Driver (runUI)
 import Routes (Routes(..), myRoute)
 import Routing (match)
 import Routing.Hash (getHash, setHash)
-import Simple.JSON (read, readJSON, writeJSON)
+import Simple.JSON (readJSON, writeJSON)
 import Web.Cookies (deleteCookie, getCookie, setCookie)
 import Web.DOM.ParentNode (QuerySelector(..))
 import Web.Firebase (getGame, newGame, subscribeToGame, updateGame)
 import Web.HTML (window)
 import Web.HTML.Location (href)
 import Web.HTML.Window (location)
-import Web.Zingtouch (bindPan, unbind)
 
 type Sub = 
   { fiber :: Ref (Maybe (Fiber Unit))
@@ -47,7 +47,7 @@ newSub = do
 cookieName :: String
 cookieName = "coyote-game"
 
-subToGame :: Sub -> (M.Query ~> Aff) -> String -> Aff Unit
+subToGame :: Sub -> (SimpleComponent.Query ~> Aff) -> String -> Aff Unit
 subToGame sub query id = withLock sub.lock $ do
   killSub sub.fiber
   fiber <- H.liftEffect $ launchAff $ CR.runProcess (firebaseProducer id CR.$$ firebaseConsumer query)
@@ -58,55 +58,70 @@ killSub fiber = H.liftEffect (R.read fiber) >>= case _ of
   Nothing -> pure unit
   Just f -> killFiber (error "Unsubscribing to game") f
 
-firebaseProducer :: GameId -> CR.Producer WebGame Aff Unit
-firebaseProducer gId = CRA.produce $ subscribeToGame gId <<< CRA.emit
+firebaseProducer :: GameId -> CR.Producer (WebGame Simple.GameState) Aff Unit
+firebaseProducer gId = CRA.produce $ subscribeToGame gId SimpleWeb.toWebGame <<< CRA.emit
 
-firebaseConsumer :: (M.Query ~> Aff) -> CR.Consumer WebGame Aff Unit
+firebaseConsumer :: (SimpleComponent.Query ~> Aff) -> CR.Consumer (WebGame Simple.GameState) Aff Unit
 firebaseConsumer query = CR.consumer \game -> do
-  query $ H.action $ M.GameUpdate game
+  query $ H.action $ SimpleComponent.GameUpdate game
   pure Nothing
 
-processMsgs :: forall a. Sub -> String ->  (M.Query ~> Aff) -> M.Message -> Aff (Maybe a)
+processMsgs :: forall a. Sub -> String ->  (SimpleComponent.Query ~> Aff) -> SimpleComponent.Message -> Aff (Maybe a)
 processMsgs sub baseUrl query = case _ of
-  M.UnsubscribeFromGame -> do
+  SimpleComponent.UnsubscribeFromGame -> do
     H.liftEffect $ deleteCookie cookieName
     withLock sub.lock (killSub sub.fiber)
-    query $ H.action $ M.HandleInput {cookie: Nothing, baseUrl}
+    query $ H.action $ SimpleComponent.HandleInput {cookie: Nothing, baseUrl}
     pure Nothing
-
-  M.CreateNewGame -> do
+  SimpleComponent.DrawCard c -> do
+    H.liftEffect $ drawCard c
+    pure Nothing
+  SimpleComponent.CoyoteCall c -> do
+    H.liftEffect $ callCoyote c
+    pure Nothing
+  SimpleComponent.CreateNewGame -> do
     c <- H.liftEffect $ (\i1 i2 -> {id:show i1,userId: show i2}) <$> genUUID <*> genUUID
-    state <- H.liftEffect $ initialGame
+    state <- H.liftEffect $ Simple.initialGame
     stateHash <- H.liftEffect $ show <$> genUUID
-    H.liftEffect $ newGame c.id 
+    H.liftEffect $ newGame c.id
       { state
       , playerMap: mempty
       , stateHash
-      }
+      } SimpleWeb.fromWebGame
     H.liftEffect $ joinGame c do
       H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
       launchAff_ do
-        query $ H.action $ M.HandleInput {cookie: Just c, baseUrl}
+        query $ H.action $ SimpleComponent.HandleInput {cookie: Just c, baseUrl}
         subToGame sub query c.id
     pure Nothing
 
-  M.ZingtouchMessage e -> case e of
-    Z.Bind el -> do
-      H.liftEffect $ bindPan el \f -> case (read f) of
-        Left err -> Console.logShow err *> pure unit
-        Right (evt :: {detail :: {data :: Array {distance :: Number}}}) -> Console.logShow evt
-      pure Nothing
-    Z.Unbind el -> H.liftEffect (unbind el) *> pure Nothing
+tryMakeMove :: CoyoteCookie -> Simple.Move -> WebGame (Simple.GameState) -> Aff Unit
+tryMakeMove c mv game = do
+  newState <- H.liftEffect $ execStateT (Simple.makeMove mv) game.state
+  updateGame c.id game{state= newState} SimpleWeb.fromWebGame SimpleWeb.toWebGame (tryMakeMove c mv)
+  
+callCoyote :: CoyoteCookie -> Effect Unit
+callCoyote c = launchAff_ $ getGame c.id SimpleWeb.toWebGame >>= case _ of
+  Nothing -> Console.error "Can't find that game!"
+  Just game -> tryMakeMove c (Simple.Coyote) game
 
+drawCard :: CoyoteCookie -> Effect Unit
+drawCard c = launchAff_ $ getGame c.id SimpleWeb.toWebGame >>= case _ of
+  Nothing -> Console.error "Can't find that game!"
+  Just game -> do
+    case (Map.lookup c.userId game.playerMap) of
+      Nothing -> Console.error "Player not in game!"
+      Just pl -> tryMakeMove c (Simple.DrawCard pl) game
+  
 joinGame :: CoyoteCookie -> Effect Unit -> Effect Unit
-joinGame c f = runAff_ (const f) $ getGame c.id >>= case _ of
+joinGame c f = runAff_ (const f) $ getGame c.id SimpleWeb.toWebGame >>= case _ of
   Nothing -> Console.error "Can't find that game!"
   Just game -> tryJoinGame game
   where
-    tryJoinGame game = updateGame c.id newGame tryJoinGame
+    tryJoinGame game = updateGame c.id newGame SimpleWeb.fromWebGame SimpleWeb.toWebGame tryJoinGame
       where 
         newGame = game
-            { state= addPlayer game.state
+            { state= Simple.addPlayer game.state
             , playerMap= Map.insert c.userId (Map.size (game.state.players)) game.playerMap
             }
 
@@ -128,7 +143,7 @@ runHalogen = HA.runHalogenAff do
     HA.selectElement (QuerySelector "#coyote") >>= case _ of
       Nothing -> Console.error "Can't find div"
       Just el -> do
-        io <- runUI M.ui {cookie,baseUrl} el
+        io <- runUI SimpleComponent.ui {cookie,baseUrl} el
     
         io.subscribe $ CR.consumer $ processMsgs sub baseUrl io.query
         

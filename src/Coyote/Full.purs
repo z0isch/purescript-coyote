@@ -1,9 +1,9 @@
-module Coyote.Types where
+module Coyote.Full where
 
 import Prelude
 
 import Control.Monad.Except (except)
-import Control.Monad.State (StateT, get, gets, modify_, runStateT)
+import Control.Monad.State (class MonadState, StateT, get, gets, modify_, runStateT)
 import Coyote.UntaggedSumRep (untaggedSumRep)
 import Data.Array (any)
 import Data.Array as A
@@ -23,7 +23,7 @@ import Data.Newtype (unwrap)
 import Data.Traversable (for, maximum, sum)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Class (liftEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Random (randomInt)
 import Effect.Ref as Ref
 import Foreign (ForeignError(..))
@@ -152,7 +152,15 @@ nextPlayer gs@{currentPlayer, players} = (currentPlayer + 1 + addBy) `mod` numPl
 
 bleh = runStateT processTotal
 
-drawTop :: StateT GameState Effect Card
+drawTop :: forall m r.
+  Bind m 
+  => MonadState
+      { deck :: Array Card
+      , discardPile :: Array Card
+      | r
+      } m
+  => MonadEffect m 
+  => m Card
 drawTop = do
   {deck} <- get
   when (A.null deck) $ do
@@ -166,7 +174,16 @@ drawTop = do
   modify_ _{deck= tail}
   pure head
 
-processTotal :: StateT GameState Effect Int
+processTotal ::  forall m r r2.
+  Bind m 
+  => MonadState
+      { deck :: Array Card
+      , discardPile :: Array Card
+      , players :: Map Player {hand :: Hand | r2}
+      | r
+      } m
+  => MonadEffect m 
+  => m Int
 processTotal = do
   {players} <- get
   qProcessed <- processQ $ seperateCards $ M.toUnfoldable players
@@ -195,7 +212,7 @@ processTotal = do
         seperate pl (SpecialCard Question) = {feather: mempty,nonQ: mempty,q: Just (Additive pl)}
         seperate _ (SpecialCard x) = {feather:mempty, nonQ: L.singleton x,q: mempty}
 
-    processSpecial :: L.List Int -> SpeciaCard -> StateT GameState Effect (L.List Int)
+    
     processSpecial feathers = case _ of
       Max0 -> pure $ L.delete maxF feathers
       MaxNeg -> pure $ fromMaybe feathers $ L.updateAt maxI (negate maxF) feathers
