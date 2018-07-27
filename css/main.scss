@@ -6,3 +6,19 @@
   float: none;
   margin: 0 auto;
 }
+
+#coyote:fullscreen {
+  background-color: white;
+  height: 100%;
+  width: 100%;
+}
+#coyote:-webkit-full-screen {
+  background-color: white;
+  height: 100%;
+  width: 100%;
+}
+#coyote:-moz-full-screen {
+  background-color: white;
+  height: 100%;
+  width: 100%;
+}

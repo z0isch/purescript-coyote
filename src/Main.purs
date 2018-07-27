@@ -33,8 +33,6 @@ import Web.HTML (window)
 import Web.HTML.Location (href)
 import Web.HTML.Window (location)
 
-foreign import _fullScreen :: Effect Unit
-
 type Sub = 
   { fiber :: Ref (Maybe (Fiber Unit))
   , lock :: Lock
@@ -164,12 +162,11 @@ main = do
         Just cookieE -> do
           case readJSON cookieE of
             Left err -> Console.error $ "Can't parse cookie: "<> show err
-            Right (cookie :: CoyoteCookie) -> 
+            Right (cookie :: CoyoteCookie) ->
               if (cookie.id /= gId) 
               then joinAndSetCookie gId
               else runHalogen
     _ -> runHalogen
-  _fullScreen
 
 joinAndSetCookie :: String -> Effect Unit
 joinAndSetCookie gId = do
