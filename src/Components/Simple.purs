@@ -13,6 +13,7 @@ import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (joinWith)
+import Data.String as String
 import Data.String.Utils (endsWith)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), delay)
@@ -223,8 +224,8 @@ ui = H.parentComponent
         myCard pl = case M.lookup pl state.players of
           Nothing -> ""
           Just {hand} -> maybe "" showCard $ A.head hand
-        url = let prefix = if baseUrl `endsWith` "#" then "" else "#"
-              in prefix <> "join/" <> id
+        url = let prefix = if baseUrl `endsWith` "#" then String.take (String.length baseUrl - 1) baseUrl else baseUrl
+              in prefix <> "#join/" <> id
 
     eval :: Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Aff
     eval = case _ of
