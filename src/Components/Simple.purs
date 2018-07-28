@@ -7,14 +7,12 @@ import Coyote.Full as Full
 import Coyote.Simple as Simple
 import Coyote.Web.Types (WebGame, CoyoteCookie)
 import Data.Array as A
-import Data.Array.NonEmpty as NA
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
-import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (joinWith)
 import Data.String as String
-import Data.String.Utils (endsWith)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), delay)
 import Halogen (liftAff)
@@ -101,14 +99,48 @@ ui = H.parentComponent
     inGame {showingHand, countdownToShowHand, input:{baseUrl}} {userId,id} {playerMap,state} = case M.lookup userId playerMap of 
       Nothing -> HH.p_ []
       Just player -> HH.p_ case countdownToShowHand of
-        Nothing -> if showingHand 
-          then 
-            [ HH.div
-              [ HP.class_ $ H.ClassName "row"]
-              [ 
-                -- HH.div
-                -- [ HP.class_ $ H.ClassName "col-2"] $ A.concat $ 
-                -- A.group (A.filter isFeather Full.unshuffledDeck) <#> \cs -> 
+        Nothing -> if showingHand
+          then case myCard player of
+            Nothing -> 
+              [ HH.div_
+                [ HH.h3 [HP.class_ $ H.ClassName "text-center"] [HH.text "Oops, tell them to draw another."]
+                , HH.button 
+                  [ HE.onClick $ HE.input_ DrawCardClick
+                  , HP.class_ $ H.ClassName "btn btn-lg btn-block btn-info"
+                  ] 
+                  [ HH.text "Draw a card"]
+                ]
+              ]
+            Just card ->
+              [ HH.div
+                [ HP.class_ $ H.ClassName "row"]
+                [ 
+                  -- HH.div
+                  -- [ HP.class_ $ H.ClassName "col-2"] $ A.concat $ 
+                  -- A.group (A.filter isFeather Full.unshuffledDeck) <#> \cs -> 
+                  --   [ HH.div 
+                  --     [ HP.class_ $ H.ClassName "row" ]
+                  --     [ HH.div
+                  --       [ HP.class_ $ H.ClassName "col-6" ]
+                  --       [ HH.h5_ 
+                  --         [ HH.text $ showCard $ NA.head cs ]
+                  --       ]
+                  --     , HH.div
+                  --       [ HP.class_ $ H.ClassName "col-6" ]
+                  --       [ HH.h5_ 
+                  --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
+                  --       ]
+                  --     ]
+                  --   ]
+                HH.div
+                  [ HP.class_ $ H.ClassName "col-12"]
+                  [ HH.h1
+                    [ HP.class_ $ H.ClassName "coyote-card text-center"]
+                    [ HH.text $ showCard card]
+                  ]
+                -- , HH.div
+                --   [ HP.class_ $ H.ClassName "col-3"] $ (A.concat $ 
+                --   A.group (A.filter (not <<< isFeather) Full.unshuffledDeck) <#> \cs -> 
                 --   [ HH.div 
                 --     [ HP.class_ $ H.ClassName "row" ]
                 --     [ HH.div
@@ -118,41 +150,18 @@ ui = H.parentComponent
                 --       ]
                 --     , HH.div
                 --       [ HP.class_ $ H.ClassName "col-6" ]
-                --       [ HH.h5_ 
+                --       [  HH.h5_ 
                 --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
                 --       ]
                 --     ]
-                --   ]
-              HH.div
-                [ HP.class_ $ H.ClassName "col-12"]
-                [ HH.h1
-                  [ HP.class_ $ H.ClassName "coyote-card text-center"]
-                  [ HH.text $ myCard player]
+                --   ])
                 ]
-              -- , HH.div
-              --   [ HP.class_ $ H.ClassName "col-3"] $ (A.concat $ 
-              --   A.group (A.filter (not <<< isFeather) Full.unshuffledDeck) <#> \cs -> 
-              --   [ HH.div 
-              --     [ HP.class_ $ H.ClassName "row" ]
-              --     [ HH.div
-              --       [ HP.class_ $ H.ClassName "col-6" ]
-              --       [ HH.h5_ 
-              --         [ HH.text $ showCard $ NA.head cs ]
-              --       ]
-              --     , HH.div
-              --       [ HP.class_ $ H.ClassName "col-6" ]
-              --       [  HH.h5_ 
-              --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
-              --       ]
-              --     ]
-              --   ])
+                , HH.button 
+                    [ HE.onClick $ HE.input_ CoyoteClick
+                    , HP.class_ $ H.ClassName "btn btn-sm btn-danger"
+                    ] 
+                    [ HH.text "Coyote!"]
               ]
-              , HH.button 
-                  [ HE.onClick $ HE.input_ CoyoteClick
-                  , HP.class_ $ H.ClassName "btn btn-sm btn-danger"
-                  ] 
-                  [ HH.text "Coyote!"]
-            ]
           else 
             [ HH.button 
               [ HE.onClick $ HE.input_ ExitGame
@@ -220,9 +229,9 @@ ui = H.parentComponent
       where
         isFeather (Full.Feather _) = true
         isFeather _ = false
-        myCard pl = case M.lookup pl state.players of
-          Nothing -> ""
-          Just {hand} -> maybe "" showCard $ A.head hand
+        myCard pl = do
+          {hand} <- M.lookup pl state.players
+          A.head hand
         url = String.takeWhile (not <<< (==) (String.codePointFromChar '#')) baseUrl <> "#join/" <> id
 
     eval :: Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Aff
