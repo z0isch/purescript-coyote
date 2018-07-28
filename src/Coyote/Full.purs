@@ -152,15 +152,15 @@ nextPlayer gs@{currentPlayer, players} = (currentPlayer + 1 + addBy) `mod` numPl
 
 bleh = runStateT processTotal
 
-drawTop :: forall m r.
+drawTop :: forall m r c.
   Bind m 
   => MonadState
-      { deck :: Array Card
-      , discardPile :: Array Card
+      { deck :: Array c
+      , discardPile :: Array c
       | r
       } m
   => MonadEffect m 
-  => m Card
+  => m c
 drawTop = do
   {deck} <- get
   when (A.null deck) $ do

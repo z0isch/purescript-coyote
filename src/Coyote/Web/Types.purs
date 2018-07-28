@@ -22,13 +22,13 @@ type CoyoteCookie =
 type WebGame s = 
   { playerMap :: Map UserId Player
   , state :: s
-  , stateHash :: String
+  , stateHash :: Int
   }
   
 type WebGameDTO s = 
   { playerMap :: Array (TupleObj UserId Player)
   , state :: s
-  , stateHash :: String
+  , stateHash :: Int
   }
 
 

@@ -68,8 +68,8 @@ drawCard c = getGame c.id SimpleWeb.toWebGame >>= case _ of
       Nothing -> error "Player not in game!"
       Just pl -> tryMakeMove c (Simple.DrawCard pl) game
   
-joinGame :: CoyoteCookie -> Effect Unit -> Effect Unit
-joinGame c f = runAff_ (const f) $ getGame c.id SimpleWeb.toWebGame >>= case _ of
+joinGame :: CoyoteCookie -> Aff Unit
+joinGame c = getGame c.id SimpleWeb.toWebGame >>= case _ of
   Nothing -> error "Can't find that game!"
   Just game -> tryJoinGame game
   where

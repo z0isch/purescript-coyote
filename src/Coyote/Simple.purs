@@ -50,9 +50,7 @@ initialGame = do
 makeMove :: Move -> StateT GameState Effect Unit
 makeMove (DrawCard pl) = do
   c <- Full.drawTop
-  modify_ \g -> g
-    { players= M.update (Just <<< _{hand= [c]}) pl g.players}
-  pure unit
+  modify_ \g -> g{ players= M.update (Just <<< _{hand= [c]}) pl g.players}
 makeMove Coyote = do
   total <- Full.processTotal
   needsShuffled <- gets \g -> any (any ((==) (Full.SpecialCard Full.Night)) <<< _.hand) g.players
@@ -70,4 +68,3 @@ makeMove Coyote = do
       { discardPile= []
       , deck= shuffled
       }
-  pure unit

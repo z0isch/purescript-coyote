@@ -11,7 +11,7 @@ import Data.Array.NonEmpty as NA
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
 import Data.String (joinWith)
 import Data.String as String
 import Data.String.Utils (endsWith)
@@ -270,12 +270,15 @@ ui = H.parentComponent
         {game} <- H.get
         
         case game of
-          Nothing -> pure unit
+          Nothing -> do
+            H.modify_ _{game= Just new}
+            pure unit
           --Someone called Coyote!
-          Just oldGame -> when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) do
-            H.modify_ _{showingHand= false}
-
-        H.modify_ _{game= Just new}
+          Just oldGame -> do
+            when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) $
+              H.modify_ _{showingHand= false}
+            when (oldGame.stateHash < new.stateHash) $
+              H.modify_ _{game= Just new}
         pure next
 
       UpdatedOldGameState next -> do

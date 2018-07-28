@@ -15,7 +15,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.UUID (genUUID)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff, launchAff_)
+import Effect.Aff (Aff, launchAff, launchAff_, launchSuspendedAff, parallel, sequential)
 import Effect.Class.Console as Console
 import Halogen as H
 import Halogen.Aff as HA
@@ -28,6 +28,7 @@ import Sub (Sub)
 import Sub as Sub
 import Web.Cookies (deleteCookie, getCookie, setCookie)
 import Web.DOM.ParentNode (QuerySelector(..))
+import Web.Firebase as Firbase
 import Web.Firebase as Firebase
 import Web.HTML (window)
 import Web.HTML.Location (href)
@@ -36,7 +37,7 @@ import Web.HTML.Window (location)
 cookieName :: String
 cookieName = "coyote-game"
 
-subToGame :: Sub -> (SimpleComponent.Query ~> Aff) -> String -> Aff Unit
+subToGame :: Sub -> (SimpleComponent.Query ~> Aff) -> GameId -> Aff Unit
 subToGame sub query id = Sub.updateSub sub $ launchAff $ CR.runProcess (firebaseProducer id CR.$$ firebaseConsumer query)
 
 firebaseProducer :: GameId -> CR.Producer (WebGame Simple.GameState) Aff Unit
@@ -69,17 +70,15 @@ processMsgs sub baseUrl query = case _ of
   SimpleComponent.CreateNewGame -> do
     c <- H.liftEffect $ (\i1 i2 -> {id:show i1,userId: show i2}) <$> genUUID <*> genUUID
     state <- H.liftEffect $ Simple.initialGame
-    stateHash <- H.liftEffect $ show <$> genUUID
     H.liftEffect $ Firebase.newGame c.id
       { state
       , playerMap: mempty
-      , stateHash
+      , stateHash: 0
       } SimpleWeb.fromWebGame
-    H.liftEffect $ Firebase.joinGame c do
-      setCookie cookieName (writeJSON c) Nothing
-      launchAff_ do
-        query $ H.action $ SimpleComponent.HandleInput {cookie: Just c, baseUrl}
-        subToGame sub query c.id
+    Firebase.joinGame c 
+    H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
+    query $ H.action $ SimpleComponent.HandleInput {cookie: Just c, baseUrl}
+    subToGame sub query c.id
     pure Nothing
 
 runHalogen :: Effect Unit
@@ -108,26 +107,39 @@ runHalogen = HA.runHalogenAff do
           Nothing -> pure unit
           Just c -> subToGame sub io.query c.id
 
-joinAndSetCookie :: String -> Effect Unit
+joinAndSetCookie :: GameId -> Aff Unit
 joinAndSetCookie gId = do
-  userId <- show <$> genUUID
+  userId <- H.liftEffect $ show <$> genUUID
   let c = {id: gId, userId}
-  Firebase.joinGame c do
-    setCookie cookieName (writeJSON c) Nothing
-    runHalogen
+  Firebase.joinGame c
+  H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
+  H.liftEffect $ runHalogen
 
 main :: Effect Unit
-main = getHash >>= match myRoute >>> case _ of
-  Left err -> Console.error err
-  Right (Join gId) -> do
-    setHash ""
-    getCookie cookieName >>= case _ of
-      Nothing -> joinAndSetCookie gId
-      Just cookieE -> do
-        case readJSON cookieE of
-          Left err -> Console.error $ "Can't parse cookie: "<> show err
-          Right (cookie :: CoyoteCookie) ->
-            if (cookie.id /= gId) 
-            then joinAndSetCookie gId
-            else runHalogen
-  _ -> runHalogen
+main = do
+  -- id <- show <$> genUUID
+  -- userId <- show <$> genUUID
+  -- userId2 <- show <$> genUUID
+
+  -- let cookie = {id,userId}
+  --     cookie2 = {id,userId:userId2}
+  -- state <- Simple.initialGame
+  -- Firebase.newGame cookie.id {state,playerMap:mempty,stateHash:0} SimpleWeb.fromWebGame
+  -- launchAff_ $ CR.runProcess (firebaseProducer cookie.id CR.$$ CR.consumer (\g -> Console.logShow g *> pure Nothing))
+  -- Firebase.joinGame cookie do
+  --   Firebase.joinGame cookie2 $
+  --     launchAff_ $ sequential $ parallel (Firebase.drawCard cookie2) *> parallel (Firebase.drawCard cookie)
+  getHash >>= match myRoute >>> case _ of
+    Left err -> Console.error err
+    Right (Join gId) -> do
+      setHash ""
+      getCookie cookieName >>= case _ of
+        Nothing -> launchAff_ $ joinAndSetCookie gId
+        Just cookieE -> do
+          case readJSON cookieE of
+            Left err -> Console.error $ "Can't parse cookie: "<> show err
+            Right (cookie :: CoyoteCookie) ->
+              if (cookie.id /= gId) 
+              then launchAff_ $ joinAndSetCookie gId
+              else runHalogen
+    _ -> runHalogen

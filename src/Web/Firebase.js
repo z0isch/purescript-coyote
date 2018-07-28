@@ -30,14 +30,17 @@ exports._update = function(id, json, left, right) {
       gameRef(id).transaction(function(curr) {
         if (curr === null) {
           //Not sure why this makes any sense
+          console.log("it's null");
           return btoa(JSON.stringify(json));
         } else {
           var currVal = JSON.parse(atob(curr));
           if (currVal.stateHash === json.stateHash) {
+            console.log("No problems with " + json.stateHash);
             resolve(right());
-            json.stateHash = require("uuid").v4();
+            json.stateHash = currVal.stateHash + 1;
             return btoa(JSON.stringify(json));
           } else {
+            console.log("You were beat! " + json.stateHash);
             resolve(left(currVal));
             return;
           }
