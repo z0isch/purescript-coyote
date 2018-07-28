@@ -6,6 +6,9 @@ import Components.Simple as SimpleComponent
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA
 import Control.Monad.Except (ExceptT(..), except, lift, runExceptT)
+import Control.Monad.State (execStateT, runStateT)
+import Coyote.Full (unshuffledDeck)
+import Coyote.Simple as Full
 import Coyote.Simple as Simple
 import Coyote.Web.Simple as SimpleWeb
 import Coyote.Web.Types (CoyoteCookie, WebGame, GameId)
@@ -15,7 +18,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.UUID (genUUID)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff, launchAff_, launchSuspendedAff, parallel, sequential)
+import Effect.Aff (Aff, forkAff, launchAff, launchAff_, launchSuspendedAff, parallel, sequential)
 import Effect.Class.Console as Console
 import Halogen as H
 import Halogen.Aff as HA
@@ -23,7 +26,7 @@ import Halogen.VDom.Driver (runUI)
 import Routes (Routes(..), myRoute)
 import Routing (match)
 import Routing.Hash (getHash, setHash)
-import Simple.JSON (readJSON, writeJSON)
+import Simple.JSON (read, readJSON, writeJSON)
 import Sub (Sub)
 import Sub as Sub
 import Web.Cookies (deleteCookie, getCookie, setCookie)
@@ -61,7 +64,6 @@ processMsgs sub baseUrl query = case _ of
       pl <- except $ note "You're not in that game" $ Map.lookup c.userId game.playerMap
       {hand} <- except $ note "You're not in that game" $ Map.lookup pl game.state.players
       when (A.null hand) $ lift $ Firebase.drawCard c
-      pure unit
     either Console.error pure err
     pure Nothing
   SimpleComponent.CallCoyote c -> do
@@ -71,7 +73,7 @@ processMsgs sub baseUrl query = case _ of
     c <- H.liftEffect $ (\i1 i2 -> {id:show i1,userId: show i2}) <$> genUUID <*> genUUID
     state <- H.liftEffect $ Simple.initialGame
     H.liftEffect $ Firebase.newGame c.id
-      { state
+      { state: state
       , playerMap: mempty
       , stateHash: 0
       } SimpleWeb.fromWebGame
@@ -117,18 +119,27 @@ joinAndSetCookie gId = do
 
 main :: Effect Unit
 main = do
+  -- case read Firebase.test1 of
+  --   Left err -> Console.logShow err
+  --   Right game -> do
+  --     Console.logShow $ _.state.players $ SimpleWeb.toWebGame game
+  --     game' <- H.liftEffect $ execStateT (Simple.makeMove (Simple.DrawCard 1)) $ _.state $ SimpleWeb.toWebGame game
+  --     Console.logShow game'.players
   -- id <- show <$> genUUID
   -- userId <- show <$> genUUID
   -- userId2 <- show <$> genUUID
+  -- userId3 <- show <$> genUUID
 
   -- let cookie = {id,userId}
   --     cookie2 = {id,userId:userId2}
+  --     cookie3 = {id,userId:userId3}
   -- state <- Simple.initialGame
   -- Firebase.newGame cookie.id {state,playerMap:mempty,stateHash:0} SimpleWeb.fromWebGame
-  -- launchAff_ $ CR.runProcess (firebaseProducer cookie.id CR.$$ CR.consumer (\g -> Console.logShow g *> pure Nothing))
-  -- Firebase.joinGame cookie do
-  --   Firebase.joinGame cookie2 $
-  --     launchAff_ $ sequential $ parallel (Firebase.drawCard cookie2) *> parallel (Firebase.drawCard cookie)
+  -- launchAff_ do
+  --   sequential $ parallel (Firebase.joinGame cookie) *> parallel (Firebase.joinGame cookie2) *> parallel (Firebase.joinGame cookie3)
+  --   sequential $ parallel (Firebase.drawCard cookie2) *> parallel (Firebase.drawCard cookie) *> parallel (Firebase.drawCard cookie3)
+  --   g <- Firebase.getGame cookie.id SimpleWeb.toWebGame
+  --   Console.logShow g
   getHash >>= match myRoute >>> case _ of
     Left err -> Console.error err
     Right (Join gId) -> do

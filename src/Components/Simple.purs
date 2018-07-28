@@ -10,11 +10,12 @@ import Data.Array as A
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (joinWith)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), delay)
+import Effect.Class.Console (log)
 import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1)
@@ -74,8 +75,9 @@ ui = H.parentComponent
     render :: State -> H.ParentHTML Query ChildQuery ChildSlot Aff
     render s = HH.div 
       [HP.classes [H.ClassName "container-fluid"]] $
-      [ -- HH.p_ 
-        --   [ HH.pre_ [HH.text $ maybe "" (show <<< _.state.discardPile) s.game]
+      [ 
+        -- HH.p_ 
+        --   [ HH.pre_ [HH.text $ maybe "" (show <<< _.stateHash) s.game]
         --   ]
       ] <> 
       [ fromMaybe notInGame (inGame s <$> s.input.cookie <*> s.game) ]
@@ -202,7 +204,7 @@ ui = H.parentComponent
                       ] <> (A.concat $ M.toUnfoldable hands <#> \(Tuple pl cards) ->
                       [ HH.dt 
                         [ HP.class_ $ H.ClassName "col-4" ] 
-                        [ HH.text $ "Player " <> show pl <>"'s card"]
+                        [ HH.text $ (if pl == player then "My" else "Player " <> show pl <>"'s") <> " card"]
                       , HH.dd 
                         [ HP.class_ $ H.ClassName "col-8" ] 
                         [ HH.text $ joinWith " -> " $ A.reverse $ map showCard cards]
