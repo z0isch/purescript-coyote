@@ -14,6 +14,8 @@ type UserId = String
 
 type GameId = String
 
+type StateHash = Int
+
 type CoyoteCookie = 
   { id :: GameId 
   , userId :: UserId
@@ -22,13 +24,13 @@ type CoyoteCookie =
 type WebGame s = 
   { playerMap :: Map UserId Player
   , state :: s
-  , stateHash :: Int
+  , stateHash :: StateHash
   }
   
 type WebGameDTO s = 
   { playerMap :: Array (TupleObj UserId Player)
   , state :: s
-  , stateHash :: Int
+  , stateHash :: StateHash
   }
 
 

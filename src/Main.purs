@@ -44,7 +44,7 @@ subToGame :: Sub -> (SimpleComponent.Query ~> Aff) -> GameId -> Aff Unit
 subToGame sub query id = Sub.updateSub sub $ launchAff $ CR.runProcess (firebaseProducer id CR.$$ firebaseConsumer query)
 
 firebaseProducer :: GameId -> CR.Producer (WebGame Simple.GameState) Aff Unit
-firebaseProducer gId = CRA.produce $ Firebase.subscribeToGame gId SimpleWeb.toWebGame <<< CRA.emit
+firebaseProducer gId = CRA.produce \emitter -> Firebase.subscribeToGame gId \dto -> CRA.emit emitter (SimpleWeb.toWebGame dto)
 
 firebaseConsumer :: (SimpleComponent.Query ~> Aff) -> CR.Consumer (WebGame Simple.GameState) Aff Unit
 firebaseConsumer query = CR.consumer \game -> do
@@ -58,26 +58,27 @@ processMsgs sub baseUrl query = case _ of
     Sub.killSub sub
     query $ H.action $ SimpleComponent.HandleInput {cookie: Nothing, baseUrl}
     pure Nothing
-  SimpleComponent.DrawCard c -> do
+  SimpleComponent.DrawCard c webGame -> do
     err <- runExceptT do
-      game <- ExceptT $ note "Can't find that game" <$> Firebase.getGame c.id SimpleWeb.toWebGame
+      game <- map SimpleWeb.toWebGame (ExceptT $ note "Can't find that game" <$> Firebase.getGame c.id)
       pl <- except $ note "You're not in that game" $ Map.lookup c.userId game.playerMap
       {hand} <- except $ note "You're not in that game" $ Map.lookup pl game.state.players
-      when (A.null hand) $ lift $ Firebase.drawCard c
+      when (A.null hand) $ lift $ Firebase.drawCard c webGame
     either Console.error pure err
     pure Nothing
-  SimpleComponent.CallCoyote c -> do
-    Firebase.callCoyote c
+  SimpleComponent.CallCoyote c webGame -> do
+    Firebase.callCoyote c webGame
     pure Nothing
   SimpleComponent.CreateNewGame -> do
     c <- H.liftEffect $ (\i1 i2 -> {id:show i1,userId: show i2}) <$> genUUID <*> genUUID
     state <- H.liftEffect $ Simple.initialGame
-    H.liftEffect $ Firebase.newGame c.id
-      { state: state
-      , playerMap: mempty
-      , stateHash: 0
-      } SimpleWeb.fromWebGame
-    Firebase.joinGame c 
+    let webGame = 
+          { state
+          , playerMap: mempty
+          , stateHash: 0
+          }
+    H.liftEffect $ Firebase.newGame c.id (SimpleWeb.fromWebGame webGame)
+    Firebase.joinGame c webGame
     H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
     query $ H.action $ SimpleComponent.HandleInput {cookie: Just c, baseUrl}
     subToGame sub query c.id
@@ -113,18 +114,15 @@ joinAndSetCookie :: GameId -> Aff Unit
 joinAndSetCookie gId = do
   userId <- H.liftEffect $ show <$> genUUID
   let c = {id: gId, userId}
-  Firebase.joinGame c
-  H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
-  H.liftEffect $ runHalogen
+  Firebase.getGame gId >>= case _ of
+    Nothing -> Console.error "Can't find that game"
+    Just g -> do
+      Firebase.joinGame c (SimpleWeb.toWebGame g)
+      H.liftEffect $ setCookie cookieName (writeJSON c) Nothing
+      H.liftEffect $ runHalogen
 
 main :: Effect Unit
 main = do
-  -- case read Firebase.test1 of
-  --   Left err -> Console.logShow err
-  --   Right game -> do
-  --     Console.logShow $ _.state.players $ SimpleWeb.toWebGame game
-  --     game' <- H.liftEffect $ execStateT (Simple.makeMove (Simple.DrawCard 1)) $ _.state $ SimpleWeb.toWebGame game
-  --     Console.logShow game'.players
   -- id <- show <$> genUUID
   -- userId <- show <$> genUUID
   -- userId2 <- show <$> genUUID
@@ -134,12 +132,18 @@ main = do
   --     cookie2 = {id,userId:userId2}
   --     cookie3 = {id,userId:userId3}
   -- state <- Simple.initialGame
-  -- Firebase.newGame cookie.id {state,playerMap:mempty,stateHash:0} SimpleWeb.fromWebGame
+  -- let webGame = {state,playerMap:mempty,stateHash:0} 
+  -- Firebase.newGame cookie.id (SimpleWeb.fromWebGame webGame)
   -- launchAff_ do
-  --   sequential $ parallel (Firebase.joinGame cookie) *> parallel (Firebase.joinGame cookie2) *> parallel (Firebase.joinGame cookie3)
-  --   sequential $ parallel (Firebase.drawCard cookie2) *> parallel (Firebase.drawCard cookie) *> parallel (Firebase.drawCard cookie3)
-  --   g <- Firebase.getGame cookie.id SimpleWeb.toWebGame
-  --   Console.logShow g
+  --   sequential $ parallel (Firebase.joinGame cookie webGame) *> parallel (Firebase.joinGame cookie2 webGame) *> parallel (Firebase.joinGame cookie3 webGame)
+  --   Firebase.getGame cookie.id >>= case _ of
+  --     Nothing -> pure unit
+  --     Just dto -> do
+  --       let webGame' = SimpleWeb.toWebGame dto
+  --       Console.logShow webGame'
+  --       sequential $ parallel (Firebase.drawCard cookie2 webGame') *> parallel (Firebase.drawCard cookie webGame') *> parallel (Firebase.drawCard cookie3 webGame')
+  --   g <- Firebase.getGame cookie.id
+  --   Console.logShow (SimpleWeb.toWebGame <$> g)
   getHash >>= match myRoute >>> case _ of
     Left err -> Console.error err
     Right (Join gId) -> do

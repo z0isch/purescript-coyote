@@ -49,8 +49,8 @@ type Input =
 data Message 
   = UnsubscribeFromGame
   | CreateNewGame
-  | DrawCard CoyoteCookie
-  | CallCoyote CoyoteCookie
+  | DrawCard CoyoteCookie (WebGame Simple.GameState)
+  | CallCoyote CoyoteCookie (WebGame Simple.GameState)
 
 type ChildQuery = Coproduct1 QRCode.Query
 type ChildSlot = Either1 Unit
@@ -256,26 +256,30 @@ ui = H.parentComponent
         s <- H.get
         case s.input.cookie of
           Nothing -> pure next
-          Just c -> do
-            H.raise $ CallCoyote c
-            H.modify_ _{showingHand= false}
-            pure next
+          Just c -> case s.game of
+            Nothing -> pure next
+            Just g -> do
+              H.raise $ CallCoyote c g
+              H.modify_ _{showingHand= false}
+              pure next
       
       DrawCardClick next -> do
         s <- H.get
         case s.input.cookie of
           Nothing -> pure next
-          Just c -> do
-            H.raise $ DrawCard c
-            _ <- H.fork do
-              H.modify_ _{countdownToShowHand= Just 3}
-              liftAff $ delay $ Milliseconds 1000.0 
-              H.modify_ _{countdownToShowHand= Just 2}
-              liftAff $ delay $ Milliseconds 1000.0 
-              H.modify_ _{countdownToShowHand= Just 1}
-              liftAff $ delay $ Milliseconds 1000.0 
-              H.modify_ _{showingHand= true, countdownToShowHand= Nothing}
-            pure next
+          Just c -> case s.game of
+            Nothing -> pure next
+            Just g -> do
+              H.raise $ DrawCard c g
+              _ <- H.fork do
+                H.modify_ _{countdownToShowHand= Just 3}
+                liftAff $ delay $ Milliseconds 1000.0 
+                H.modify_ _{countdownToShowHand= Just 2}
+                liftAff $ delay $ Milliseconds 1000.0 
+                H.modify_ _{countdownToShowHand= Just 1}
+                liftAff $ delay $ Milliseconds 1000.0 
+                H.modify_ _{showingHand= true, countdownToShowHand= Nothing}
+              pure next
 
       GameUpdate new next -> do
         {game} <- H.get
@@ -288,8 +292,7 @@ ui = H.parentComponent
           Just oldGame -> do
             when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) $
               H.modify_ _{showingHand= false}
-            when (oldGame.stateHash < new.stateHash) $
-              H.modify_ _{game= Just new}
+            H.modify_ _{game= Just new}
         pure next
 
       UpdatedOldGameState next -> do
