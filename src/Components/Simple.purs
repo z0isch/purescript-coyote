@@ -10,12 +10,12 @@ import Data.Array as A
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.String (joinWith)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), delay)
-import Effect.Class.Console (log)
+import Effect.Class.Console (log, logShow)
 import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1)
@@ -29,6 +29,7 @@ type State =
   , showingHand :: Boolean
   , updatedOldGameState :: Boolean
   , countdownToShowHand :: Maybe Int
+  , waitingForCard :: Boolean
   }
   
 data Query a 
@@ -70,6 +71,7 @@ ui = H.parentComponent
       , showingHand: false
       , updatedOldGameState: false
       , countdownToShowHand: Nothing
+      , waitingForCard: false
       }
 
     render :: State -> H.ParentHTML Query ChildQuery ChildSlot Aff
@@ -98,28 +100,56 @@ ui = H.parentComponent
         ]
       ]
       
-    inGame {showingHand, countdownToShowHand, input:{baseUrl}} {userId,id} {playerMap,state} = case M.lookup userId playerMap of 
+    inGame {showingHand, waitingForCard, countdownToShowHand, input:{baseUrl}} {userId,id} {playerMap,state} = case M.lookup userId playerMap of 
       Nothing -> HH.p_ []
       Just player -> HH.p_ case countdownToShowHand of
         Nothing -> if showingHand
-          then case myCard player of
-            Nothing -> 
+          then if waitingForCard
+            then  
               [ HH.div_
-                [ HH.h3 [HP.class_ $ H.ClassName "text-center"] [HH.text "Oops, tell them to draw another."]
-                , HH.button 
-                  [ HE.onClick $ HE.input_ DrawCardClick
-                  , HP.class_ $ H.ClassName "btn btn-lg btn-block btn-info"
-                  ] 
-                  [ HH.text "Draw a card"]
-                ]
+                [ HH.h3 [HP.class_ $ H.ClassName "text-center"] [HH.text "Still waiting on your card..."]]
               ]
-            Just card ->
-              [ HH.div
-                [ HP.class_ $ H.ClassName "row"]
-                [ 
-                  -- HH.div
-                  -- [ HP.class_ $ H.ClassName "col-2"] $ A.concat $ 
-                  -- A.group (A.filter isFeather Full.unshuffledDeck) <#> \cs -> 
+            else case myCard player of
+              Nothing -> 
+                [ HH.div_
+                  [ HH.h3 [HP.class_ $ H.ClassName "text-center"] [HH.text "Oops, tell them to draw another."]
+                  , HH.button 
+                    [ HE.onClick $ HE.input_ DrawCardClick
+                    , HP.class_ $ H.ClassName "btn btn-lg btn-block btn-info"
+                    ] 
+                    [ HH.text "Draw a card"]
+                  ]
+                ]
+              Just card ->
+                [ HH.div
+                  [ HP.class_ $ H.ClassName "row"]
+                  [ 
+                    -- HH.div
+                    -- [ HP.class_ $ H.ClassName "col-2"] $ A.concat $ 
+                    -- A.group (A.filter isFeather Full.unshuffledDeck) <#> \cs -> 
+                    --   [ HH.div 
+                    --     [ HP.class_ $ H.ClassName "row" ]
+                    --     [ HH.div
+                    --       [ HP.class_ $ H.ClassName "col-6" ]
+                    --       [ HH.h5_ 
+                    --         [ HH.text $ showCard $ NA.head cs ]
+                    --       ]
+                    --     , HH.div
+                    --       [ HP.class_ $ H.ClassName "col-6" ]
+                    --       [ HH.h5_ 
+                    --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
+                    --       ]
+                    --     ]
+                    --   ]
+                  HH.div
+                    [ HP.class_ $ H.ClassName "col-12"]
+                    [ HH.h1
+                      [ HP.class_ $ H.ClassName "coyote-card text-center"]
+                      [ HH.text $ showCard card]
+                    ]
+                  -- , HH.div
+                  --   [ HP.class_ $ H.ClassName "col-3"] $ (A.concat $ 
+                  --   A.group (A.filter (not <<< isFeather) Full.unshuffledDeck) <#> \cs -> 
                   --   [ HH.div 
                   --     [ HP.class_ $ H.ClassName "row" ]
                   --     [ HH.div
@@ -129,41 +159,18 @@ ui = H.parentComponent
                   --       ]
                   --     , HH.div
                   --       [ HP.class_ $ H.ClassName "col-6" ]
-                  --       [ HH.h5_ 
+                  --       [  HH.h5_ 
                   --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
                   --       ]
                   --     ]
-                  --   ]
-                HH.div
-                  [ HP.class_ $ H.ClassName "col-12"]
-                  [ HH.h1
-                    [ HP.class_ $ H.ClassName "coyote-card text-center"]
-                    [ HH.text $ showCard card]
+                  --   ])
                   ]
-                -- , HH.div
-                --   [ HP.class_ $ H.ClassName "col-3"] $ (A.concat $ 
-                --   A.group (A.filter (not <<< isFeather) Full.unshuffledDeck) <#> \cs -> 
-                --   [ HH.div 
-                --     [ HP.class_ $ H.ClassName "row" ]
-                --     [ HH.div
-                --       [ HP.class_ $ H.ClassName "col-6" ]
-                --       [ HH.h5_ 
-                --         [ HH.text $ showCard $ NA.head cs ]
-                --       ]
-                --     , HH.div
-                --       [ HP.class_ $ H.ClassName "col-6" ]
-                --       [  HH.h5_ 
-                --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
-                --       ]
-                --     ]
-                --   ])
+                  , HH.button 
+                      [ HE.onClick $ HE.input_ CoyoteClick
+                      , HP.class_ $ H.ClassName "btn btn-sm btn-danger"
+                      ] 
+                      [ HH.text "Coyote!"]
                 ]
-                , HH.button 
-                    [ HE.onClick $ HE.input_ CoyoteClick
-                    , HP.class_ $ H.ClassName "btn btn-sm btn-danger"
-                    ] 
-                    [ HH.text "Coyote!"]
-              ]
           else 
             [ HH.button 
               [ HE.onClick $ HE.input_ ExitGame
@@ -173,13 +180,13 @@ ui = H.parentComponent
             , HH.div
               [ HP.class_ $ H.ClassName "row" ]
               [ HH.div
-                [ HP.class_ $ H.ClassName "col-3" ]
+                [ HP.class_ $ H.ClassName "col-5" ]
                 [ HH.a
                   [ HP.href url ]
                   [ HH.slot' cp1 unit QRCode.ui url absurd ]
                 ]
               , HH.div
-                [ HP.class_ $ H.ClassName "col-9" ]
+                [ HP.class_ $ H.ClassName "col-7" ]
                 [ case A.last state.previousRounds of
                   Nothing -> HH.h3
                     [ HP.class_ $ H.ClassName "text-center" ] 
@@ -193,24 +200,26 @@ ui = H.parentComponent
                         [ HP.class_ $ H.ClassName "alert alert-primary text-center" ] 
                         [ HH.text "Just Shuffled!" ]
                       else HH.span_ []
-                    , HH.div
-                      [ HP.class_ $ H.ClassName "row" ] $ A.concat [
-                      [ HH.dt 
-                        [ HP.class_ $ H.ClassName "col-4" ]
-                        [ HH.text "Total"]
-                      , HH.dd 
-                        [ HP.class_ $ H.ClassName "col-8" ]
-                        [ HH.text $ show total ]
-                      ] <> (A.concat $ M.toUnfoldable hands <#> \(Tuple pl cards) ->
-                      [ HH.dt 
-                        [ HP.class_ $ H.ClassName "col-4" ] 
-                        [ HH.text $ (if pl == player then "My" else "Player " <> show pl <>"'s") <> " card"]
-                      , HH.dd 
-                        [ HP.class_ $ H.ClassName "col-8" ] 
-                        [ HH.text $ joinWith " -> " $ A.reverse $ map showCard cards]
-                      ])]
-                    ] 
-                ]
+                    , HH.table
+                        [ HP.class_ $ H.ClassName "table table-sm" ]
+                        [ HH.tbody_ $ 
+                          [ HH.tr
+                            [ HP.class_ $ H.ClassName "table-primary" ]
+                            [ HH.td_ [ HH.b_ [ HH.text "Total"]]
+                            , HH.td_ [ HH.b_ [ HH.text $ show total ]]
+                            ]
+                          ] <> (A.concat $ M.toUnfoldable hands <#> \(Tuple pl cards) ->
+                          [ HH.tr
+                            [ HP.class_ $ H.ClassName $ if pl == player then "table-warning" else " " ]
+                            [ HH.td_
+                              [ HH.text $ (if pl == player then "My" else "Player " <> show pl <>"'s") <> " card"]
+                            , HH.td_
+                              [ HH.text $ joinWith " -> " $ A.reverse $ map showCard cards]
+                            ]                            
+                          ])
+                        ]
+                      ]
+                  ]
               ]
             , HH.button 
               [ HE.onClick $ HE.input_ DrawCardClick
@@ -271,27 +280,36 @@ ui = H.parentComponent
             Nothing -> pure next
             Just g -> do
               H.raise $ DrawCard c g
-              _ <- H.fork do
-                H.modify_ _{countdownToShowHand= Just 3}
+              _ <- H.fork $ do
+                H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
                 liftAff $ delay $ Milliseconds 1000.0 
                 H.modify_ _{countdownToShowHand= Just 2}
                 liftAff $ delay $ Milliseconds 1000.0 
                 H.modify_ _{countdownToShowHand= Just 1}
-                liftAff $ delay $ Milliseconds 1000.0 
-                H.modify_ _{showingHand= true, countdownToShowHand= Nothing}
+                liftAff $ delay $ Milliseconds 1000.0
+                H.modify_ _{countdownToShowHand= Nothing}
+                let 
+                  waitForCard = do
+                    {game, input:{cookie}, waitingForCard} <- H.get
+                    when waitingForCard do
+                      let hand = ((<) 0 <<< A.length <<< _.hand) <$> (game >>= \g -> cookie >>= \c -> M.lookup c.userId g.playerMap >>= flip M.lookup g.state.players)
+                      case hand of 
+                        Just true -> H.modify_ _{showingHand= true, waitingForCard= false} 
+                        _ -> liftAff (delay (Milliseconds 100.0)) *> waitForCard
+                waitForCard
               pure next
-
+  
       GameUpdate new next -> do
-        {game} <- H.get
+        {game, input:{cookie}} <- H.get
         
         case game of
           Nothing -> do
             H.modify_ _{game= Just new}
             pure unit
-          --Someone called Coyote!
           Just oldGame -> do
+            --Someone called Coyote!
             when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) $
-              H.modify_ _{showingHand= false}
+              H.modify_ _{showingHand= false, waitingForCard= false}
             H.modify_ _{game= Just new}
         pure next
 

@@ -24,23 +24,35 @@ exports._new = function(id, json) {
 
 exports._update = function(id, stateHash, f) {
   return function(onError, onSuccess) {
-    gameRef(id).transaction(function(curr) {
-      if (curr === null) {
-        //Not sure why this makes any sense
-        return null;
-      } else {
-        var currVal = JSON.parse(atob(curr));
-        if (currVal.stateHash === stateHash) {
-          var newVal = f(currVal)();
-          newVal.stateHash++;
-          onSuccess(newVal);
-          return btoa(JSON.stringify(newVal));
+    gameRef(id).transaction(
+      function(curr) {
+        if (curr === null) {
+          //Not sure why this makes any sense
+          return null;
         } else {
+          var currVal = JSON.parse(atob(curr));
+          if (currVal.stateHash === stateHash) {
+            var newVal = f(currVal)();
+            newVal.stateHash++;
+            return btoa(JSON.stringify(newVal));
+          } else {
+            return;
+          }
+        }
+      },
+      function(error, committed, snapshot) {
+        var currVal = JSON.parse(atob(snapshot.val()));
+        if (error) {
+          onError(error);
+        } else if (!committed) {
+          console.log("Not committed!");
           onError(new Error(JSON.stringify(currVal)));
-          return;
+        } else {
+          onSuccess(currVal);
         }
       }
-    });
+    );
+
     return function(cancelError, onCancelerError, onCancelerSuccess) {
       onCancelerSuccess();
     };
