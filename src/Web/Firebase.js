@@ -22,7 +22,7 @@ exports._new = function(id, json) {
   gameRef(id).set(btoa(JSON.stringify(json)));
 };
 
-exports._update = function(id, stateHash, f) {
+exports._update = function(left, right, id, stateHash, f) {
   return function(onError, onSuccess) {
     gameRef(id).transaction(
       function(curr) {
@@ -45,10 +45,9 @@ exports._update = function(id, stateHash, f) {
         if (error) {
           onError(error);
         } else if (!committed) {
-          console.log("Not committed!");
-          onError(new Error(JSON.stringify(currVal)));
+          onSuccess(left(currVal));
         } else {
-          onSuccess(currVal);
+          onSuccess(right(currVal));
         }
       }
     );
