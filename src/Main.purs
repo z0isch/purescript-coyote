@@ -6,9 +6,6 @@ import Components.Simple as SimpleComponent
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA
 import Control.Monad.Except (ExceptT(..), except, lift, runExceptT)
-import Control.Monad.State (execStateT, runStateT)
-import Coyote.Full (unshuffledDeck)
-import Coyote.Simple as Full
 import Coyote.Simple as Simple
 import Coyote.Web.Simple as SimpleWeb
 import Coyote.Web.Types (CoyoteCookie, WebGame, GameId)
@@ -18,7 +15,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.UUID (genUUID)
 import Effect (Effect)
-import Effect.Aff (Aff, forkAff, launchAff, launchAff_, launchSuspendedAff, parallel, sequential)
+import Effect.Aff (Aff, launchAff, launchAff_)
 import Effect.Class.Console as Console
 import Halogen as H
 import Halogen.Aff as HA
@@ -26,12 +23,11 @@ import Halogen.VDom.Driver (runUI)
 import Routes (Routes(..), myRoute)
 import Routing (match)
 import Routing.Hash (getHash, setHash)
-import Simple.JSON (read, readJSON, writeJSON)
+import Simple.JSON (readJSON, writeJSON)
 import Sub (Sub)
 import Sub as Sub
 import Web.Cookies (deleteCookie, getCookie, setCookie)
 import Web.DOM.ParentNode (QuerySelector(..))
-import Web.Firebase as Firbase
 import Web.Firebase as Firebase
 import Web.HTML (window)
 import Web.HTML.Location (href)
@@ -72,7 +68,7 @@ processMsgs sub baseUrl query = case _ of
   SimpleComponent.CreateNewGame -> do
     c <- H.liftEffect $ (\i1 i2 -> {id:show i1,userId: show i2}) <$> genUUID <*> genUUID
     state <- H.liftEffect $ Simple.initialGame
-    let webGame = 
+    let webGame =
           { state
           , playerMap: mempty
           , stateHash: 0
@@ -90,22 +86,22 @@ runHalogen = HA.runHalogenAff do
 
     baseUrl <- H.liftEffect $ window >>= location >>= href
     cookie <- H.liftEffect do
-      cookieE <- getCookie cookieName 
+      cookieE <- getCookie cookieName
       case map readJSON cookieE of
         Nothing -> pure Nothing
         (Just (Left err)) -> do
           Console.error $ "Can't parse cookie: "<> show err
           pure Nothing
         (Just (Right cookie)) -> pure $ Just cookie
-    
+
     _ <- HA.awaitBody
     HA.selectElement (QuerySelector "#coyote") >>= case _ of
       Nothing -> Console.error "Can't find div"
       Just el -> do
         io <- runUI SimpleComponent.ui {cookie,baseUrl} el
-    
+
         io.subscribe $ CR.consumer $ processMsgs sub baseUrl io.query
-        
+
         case cookie of
           Nothing -> pure unit
           Just c -> subToGame sub io.query c.id
@@ -123,27 +119,6 @@ joinAndSetCookie gId = do
 
 main :: Effect Unit
 main = do
-  -- id <- show <$> genUUID
-  -- userId <- show <$> genUUID
-  -- userId2 <- show <$> genUUID
-  -- userId3 <- show <$> genUUID
-
-  -- let cookie = {id,userId}
-  --     cookie2 = {id,userId:userId2}
-  --     cookie3 = {id,userId:userId3}
-  -- state <- Simple.initialGame
-  -- let webGame = {state,playerMap:mempty,stateHash:0} 
-  -- Firebase.newGame cookie.id (SimpleWeb.fromWebGame webGame)
-  -- launchAff_ do
-  --   sequential $ parallel (Firebase.joinGame cookie webGame) *> parallel (Firebase.joinGame cookie2 webGame) *> parallel (Firebase.joinGame cookie3 webGame)
-  --   Firebase.getGame cookie.id >>= case _ of
-  --     Nothing -> pure unit
-  --     Just dto -> do
-  --       let webGame' = SimpleWeb.toWebGame dto
-  --       Console.logShow webGame'
-  --       sequential $ parallel (Firebase.drawCard cookie2 webGame') *> parallel (Firebase.drawCard cookie webGame') *> parallel (Firebase.drawCard cookie3 webGame')
-  --   g <- Firebase.getGame cookie.id
-  --   Console.logShow (SimpleWeb.toWebGame <$> g)
   getHash >>= match myRoute >>> case _ of
     Left err -> Console.error err
     Right (Join gId) -> do
@@ -154,7 +129,7 @@ main = do
           case readJSON cookieE of
             Left err -> Console.error $ "Can't parse cookie: "<> show err
             Right (cookie :: CoyoteCookie) ->
-              if (cookie.id /= gId) 
+              if (cookie.id /= gId)
               then launchAff_ $ joinAndSetCookie gId
               else runHalogen
     _ -> runHalogen
