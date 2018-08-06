@@ -7,6 +7,7 @@ import Coyote.Full as Full
 import Coyote.Simple as Simple
 import Coyote.Web.Types (WebGame, CoyoteCookie)
 import Data.Array as A
+import Data.Array.NonEmpty as NA
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
@@ -123,53 +124,46 @@ ui = H.parentComponent
               Just card ->
                 [ HH.div
                   [ HP.class_ $ H.ClassName "row"]
-                  [ 
-                    -- HH.div
-                    -- [ HP.class_ $ H.ClassName "col-2"] $ A.concat $ 
-                    -- A.group (A.filter isFeather Full.unshuffledDeck) <#> \cs -> 
-                    --   [ HH.div 
-                    --     [ HP.class_ $ H.ClassName "row" ]
-                    --     [ HH.div
-                    --       [ HP.class_ $ H.ClassName "col-6" ]
-                    --       [ HH.h5_ 
-                    --         [ HH.text $ showCard $ NA.head cs ]
-                    --       ]
-                    --     , HH.div
-                    --       [ HP.class_ $ H.ClassName "col-6" ]
-                    --       [ HH.h5_ 
-                    --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
-                    --       ]
-                    --     ]
-                    --   ]
-                  HH.div
-                    [ HP.class_ $ H.ClassName "col-12"]
+                  [ HH.div
+                    [ HP.class_ $ H.ClassName "col-2"] 
+                    [ HH.table
+                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped" ]
+                      [ HH.tbody_ $ A.concat $ (A.sortWith sortFeathers $ A.group (A.filter isPosFeather Full.unshuffledDeck)) <#> \cs -> 
+                      [ HH.tr_
+                        [ HH.th_
+                          [ HH.text $ showCard $ NA.head cs ]
+                        , HH.td_
+                          [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]
+                        ]
+                      ]
+                    ]
+                  ]
+                , HH.div
+                    [ HP.class_ $ H.ClassName "col-7"]
                     [ HH.h1
                       [ HP.class_ $ H.ClassName "coyote-card text-center"]
                       [ HH.text $ showCard card]
-                    ]
-                  -- , HH.div
-                  --   [ HP.class_ $ H.ClassName "col-3"] $ (A.concat $ 
-                  --   A.group (A.filter (not <<< isFeather) Full.unshuffledDeck) <#> \cs -> 
-                  --   [ HH.div 
-                  --     [ HP.class_ $ H.ClassName "row" ]
-                  --     [ HH.div
-                  --       [ HP.class_ $ H.ClassName "col-6" ]
-                  --       [ HH.h5_ 
-                  --         [ HH.text $ showCard $ NA.head cs ]
-                  --       ]
-                  --     , HH.div
-                  --       [ HP.class_ $ H.ClassName "col-6" ]
-                  --       [  HH.h5_ 
-                  --         [ HH.small_ [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]]
-                  --       ]
-                  --     ]
-                  --   ])
-                  ]
-                  , HH.button 
+                    , HH.button 
                       [ HE.onClick $ HE.input_ CoyoteClick
                       , HP.class_ $ H.ClassName "btn btn-sm btn-danger"
                       ] 
                       [ HH.text "Coyote!"]
+                    ]
+                  , HH.div
+                    [ HP.class_ $ H.ClassName "col-3"] 
+                    [ HH.table
+                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped" ]
+                      [ HH.tbody_ $ A.concat $ (A.sortWith sortFeathers $ A.group (A.filter (not <<< isPosFeather) Full.unshuffledDeck)) <#> \cs -> 
+                        [ HH.tr_
+                          [ HH.th_
+                            [ HH.text $ showCard $ NA.head cs ]
+                          , HH.td_
+                            [ HH.text $ show (A.length (A.filter ((==) (NA.head cs)) state.discardPile)) <> "/" <> show (NA.length cs) ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
                 ]
           else 
             [ HH.button 
@@ -238,8 +232,14 @@ ui = H.parentComponent
             ]
           ]
       where
-        isFeather (Full.Feather _) = true
-        isFeather _ = false
+        sortFeathers cs = case NA.head cs of
+          (Full.Feather x) -> x
+          (Full.SpecialCard Full.Night) -> 0
+          (Full.SpecialCard _) -> -25
+          
+        isPosFeather (Full.Feather x) = x > 0
+        isPosFeather (Full.SpecialCard Full.Night) = true
+        isPosFeather _ = false
         myCard pl = do
           {hand} <- M.lookup pl state.players
           A.head hand
