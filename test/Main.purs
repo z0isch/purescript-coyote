@@ -42,4 +42,4 @@ main = do
         Assert.assert "Should be three in the game" $ 
           (map (M.size <<< _.playerMap) g) == Just 3
         Assert.assert "Should all have cards" $
-          (map (M.size <<< M.filter (\{hand} -> not $ A.null hand) <<< _.state.players) g) == Just 3
+          (map (M.size <<< M.filter (not <<< A.null <<< _.hand) <<< _.state.players) g) == Just 3

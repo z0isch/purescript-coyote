@@ -127,7 +127,7 @@ ui = H.parentComponent
                   [ HH.div
                     [ HP.class_ $ H.ClassName "col-2"] 
                     [ HH.table
-                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped" ]
+                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped coyote-table" ]
                       [ HH.tbody_ $ A.concat $ (A.sortWith sortFeathers $ A.group (A.filter isPosFeather Full.unshuffledDeck)) <#> \cs -> 
                       [ HH.tr_
                         [ HH.th_
@@ -152,7 +152,7 @@ ui = H.parentComponent
                   , HH.div
                     [ HP.class_ $ H.ClassName "col-3"] 
                     [ HH.table
-                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped" ]
+                      [ HP.class_ $ H.ClassName "table table-borderless table-sm table-striped coyote-table" ]
                       [ HH.tbody_ $ A.concat $ (A.sortWith sortFeathers $ A.group (A.filter (not <<< isPosFeather) Full.unshuffledDeck)) <#> \cs -> 
                         [ HH.tr_
                           [ HH.th_
@@ -235,14 +235,15 @@ ui = H.parentComponent
         sortFeathers cs = case NA.head cs of
           (Full.Feather x) -> x
           (Full.SpecialCard Full.Night) -> 0
-          (Full.SpecialCard _) -> -25
+          (Full.SpecialCard _) -> 1
           
         isPosFeather (Full.Feather x) = x > 0
-        isPosFeather (Full.SpecialCard Full.Night) = true
         isPosFeather _ = false
+
         myCard pl = do
           {hand} <- M.lookup pl state.players
           A.head hand
+        
         url = String.takeWhile (not <<< (==) (String.codePointFromChar '#')) baseUrl <> "#join/" <> id
 
     eval :: Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Aff
@@ -326,7 +327,7 @@ showCard = case _ of
   Full.Feather x -> show x
   Full.SpecialCard x -> case x of
     Full.Question -> "?"
-    Full.Max0 -> "Max0"
-    Full.MaxNeg -> "Max-"
+    Full.Max0 -> "M0"
+    Full.MaxNeg -> "M-"
     Full.X2 -> "X2"
     Full.Night -> "0"
