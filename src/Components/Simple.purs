@@ -23,6 +23,7 @@ import Halogen.Component.ChildPath (cp1)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Web.NoSleep as NoSleep
 
 type State = 
   { input :: Input
@@ -280,6 +281,7 @@ ui = H.parentComponent
           Just c -> case s.game of
             Nothing -> pure next
             Just g -> do
+              H.liftEffect NoSleep.enable
               H.raise $ DrawCard c g
               _ <- H.fork $ do
                 H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
@@ -309,7 +311,8 @@ ui = H.parentComponent
             pure unit
           Just oldGame -> do
             --Someone called Coyote!
-            when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) $
+            when (A.length (new.state.previousRounds) > A.length (oldGame.state.previousRounds)) do
+              H.liftEffect NoSleep.disable
               H.modify_ _{showingHand= false, waitingForCard= false}
             H.modify_ _{game= Just new}
         pure next

@@ -9,7 +9,6 @@ if (process.env.NODE_ENV === "production") {
     if (requestMethod) {
       requestMethod.call(element);
     }
-    document.removeEventListener("click", enableFullScreen, false);
   }
   document.addEventListener("click", enableFullScreen, false);
 } else {
