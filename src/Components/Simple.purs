@@ -3,6 +3,7 @@ module Components.Simple where
 import Prelude
 
 import Components.QRCode as QRCode
+import Control.Monad.Maybe.Trans (MaybeT(..), lift, runMaybeT)
 import Coyote.Full as Full
 import Coyote.Simple as Simple
 import Coyote.Web.Types (WebGame, CoyoteCookie)
@@ -17,7 +18,7 @@ import Data.String (joinWith)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), attempt, delay)
-import Effect.Class.Console (error, log)
+import Effect.Class.Console (error)
 import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1)
@@ -82,7 +83,7 @@ ui = H.parentComponent
       [HP.classes [H.ClassName "container-fluid"]] $
       [ 
         -- HH.p_ 
-        --   [ HH.pre_ [HH.text $ maybe "" (show <<< _.stateHash) s.game]
+        --   [ HH.pre_ [HH.text $ show s]
         --   ]
       ] <> 
       [ fromMaybe notInGame (inGame s <$> s.input.cookie <*> s.game) ]
@@ -277,37 +278,20 @@ ui = H.parentComponent
       
       DrawCardClick next -> do
         s <- H.get
-        case s.input.cookie of
-          Nothing -> pure next
-          Just c -> case s.game of
-            Nothing -> pure next
-            Just g -> do
-              H.liftAff $ attempt NoSleep.enable >>= case _ of
-                  Left err -> error $ show err
-                  Right _ -> pure unit
-              H.raise $ DrawCard c g
-              _ <- H.fork $ do
-                H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
-                liftAff $ delay $ Milliseconds 1000.0 
-                H.modify_ _{countdownToShowHand= Just 2}
-                liftAff $ delay $ Milliseconds 1000.0 
-                H.modify_ _{countdownToShowHand= Just 1}
-                liftAff $ delay $ Milliseconds 1000.0
-                H.modify_ _{countdownToShowHand= Nothing}
-                let 
-                  waitForCard = do
-                    {game, input:{cookie}, waitingForCard} <- H.get
-                    when waitingForCard do
-                      let hand = ((<) 0 <<< A.length <<< _.hand) <$> (game >>= \g -> cookie >>= \c -> M.lookup c.userId g.playerMap >>= flip M.lookup g.state.players)
-                      case hand of 
-                        Just true -> H.modify_ _{showingHand= true, waitingForCard= false} 
-                        _ -> liftAff (delay (Milliseconds 100.0)) *> waitForCard
-                waitForCard
-              pure next
+        _ <- runMaybeT do
+          c <- hoistMaybe s.input.cookie
+          g <- hoistMaybe s.game
+          lift do 
+            H.liftAff $ attempt NoSleep.enable >>= case _ of
+                Left err -> error $ show err
+                Right _ -> pure unit
+            H.raise $ DrawCard c g
+            H.modify_ _{waitingForCard= true}
+            H.fork $ countDown 3 *> waitForCard
+        pure next
   
       GameUpdate new next -> do
         {game, input:{cookie}} <- H.get
-        
         case game of
           Nothing -> do
             H.modify_ _{game= Just new}
@@ -328,6 +312,29 @@ ui = H.parentComponent
         H.modify_ _{updatedOldGameState= false}
         pure next
 
+    waitForCard :: H.ParentDSL State Query ChildQuery ChildSlot Message Aff Unit
+    waitForCard = do
+      {waitingForCard} <- H.get
+      when waitingForCard $ hasACard >>=
+        if _
+        then H.modify_ _{showingHand= true, waitingForCard= false } 
+        else liftAff (delay (Milliseconds 100.0)) *> waitForCard
+    
+    hasACard :: H.ParentDSL State Query ChildQuery ChildSlot Message Aff Boolean
+    hasACard = H.gets $ fromMaybe false <$> \{game, input:{cookie}} -> do
+      g <- game
+      c <- cookie
+      pl <- M.lookup c.userId g.playerMap
+      st <- M.lookup pl g.state.players
+      pure $ (<) 0 $ A.length $ st.hand
+
+    countDown :: Int -> H.ParentDSL State Query ChildQuery ChildSlot Message Aff Unit
+    countDown 0 = H.modify_ _{countdownToShowHand= Nothing}
+    countDown x = do
+      H.modify_ _{countdownToShowHand= Just x}
+      liftAff $ delay $ Milliseconds 1000.0
+      countDown (x-1)
+
 showCard :: Full.Card -> String
 showCard = case _ of
   Full.Feather x -> show x
@@ -337,3 +344,6 @@ showCard = case _ of
     Full.MaxNeg -> "M-"
     Full.X2 -> "X2"
     Full.Night -> "0"
+
+hoistMaybe :: forall m a. Applicative m => Maybe a -> MaybeT m a
+hoistMaybe = MaybeT <<< pure
