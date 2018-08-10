@@ -44,14 +44,9 @@ exports._enable = function() {
       window.setTimeout(window.stop, 0);
     }, 15000);
   } else {
-    noSleepVideo
-      .play()
-      .then(function() {
-        console.log("playing");
-      })
-      .catch(function(err) {
-        console.error(err);
-      });
+    noSleepVideo.play().catch(function(err) {
+      console.error(err);
+    });
   }
 };
 
@@ -62,7 +57,6 @@ exports._disable = function() {
       noSleepTimer = null;
     }
   } else {
-    console.log("pausing");
     noSleepVideo.pause();
   }
 };
