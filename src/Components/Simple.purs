@@ -284,7 +284,7 @@ ui = H.parentComponent
             Just g -> do
               H.liftAff $ attempt NoSleep.enable >>= case _ of
                   Left err -> error $ show err
-                  Right _ -> log "Playing" *> pure unit
+                  Right _ -> pure unit
               H.raise $ DrawCard c g
               _ <- H.fork $ do
                 H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
