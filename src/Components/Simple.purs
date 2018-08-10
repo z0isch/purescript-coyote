@@ -17,7 +17,7 @@ import Data.String (joinWith)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, Milliseconds(..), attempt, delay)
-import Effect.Class.Console (error)
+import Effect.Class.Console (error, log)
 import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1)
@@ -284,7 +284,7 @@ ui = H.parentComponent
             Just g -> do
               H.liftAff $ attempt NoSleep.enable >>= case _ of
                   Left err -> error $ show err
-                  Right _ -> pure unit
+                  Right _ -> log "Playing" *> pure unit
               H.raise $ DrawCard c g
               _ <- H.fork $ do
                 H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
