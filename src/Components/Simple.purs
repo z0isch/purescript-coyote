@@ -8,15 +8,16 @@ import Coyote.Simple as Simple
 import Coyote.Web.Types (WebGame, CoyoteCookie)
 import Data.Array as A
 import Data.Array.NonEmpty as NA
+import Data.Either (Either(..))
 import Data.Either.Nested (Either1)
 import Data.Functor.Coproduct.Nested (Coproduct1)
 import Data.Map as M
-import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (joinWith)
 import Data.String as String
 import Data.Tuple (Tuple(..))
-import Effect.Aff (Aff, Milliseconds(..), delay)
-import Effect.Class.Console (log, logShow)
+import Effect.Aff (Aff, Milliseconds(..), attempt, delay)
+import Effect.Class.Console (error)
 import Halogen (liftAff)
 import Halogen as H
 import Halogen.Component.ChildPath (cp1)
@@ -281,7 +282,9 @@ ui = H.parentComponent
           Just c -> case s.game of
             Nothing -> pure next
             Just g -> do
-              H.liftEffect NoSleep.enable
+              H.liftAff $ attempt NoSleep.enable >>= case _ of
+                  Left err -> error $ show err
+                  Right _ -> pure unit
               H.raise $ DrawCard c g
               _ <- H.fork $ do
                 H.modify_ _{countdownToShowHand= Just 3, waitingForCard= true}
