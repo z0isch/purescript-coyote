@@ -34,22 +34,22 @@ type WebGameDTO s =
   }
 
 
-toTuple :: forall a b.
+toTuple :: ∀ a b.
   { a :: a
   , b :: b
   }
   -> Tuple a b
 toTuple {a,b} = Tuple a b
 
-fromTuple :: forall a b.
+fromTuple :: ∀ a b.
   Tuple a b
   -> { a :: a
      , b :: b
      }
 fromTuple (Tuple a b) = {a,b}
 
-fromMap :: forall a b. Map a b -> Array (TupleObj a b)
+fromMap :: ∀ a b. Map a b -> Array (TupleObj a b)
 fromMap = map fromTuple <<< M.toUnfoldable
 
-toMap :: forall a b. Ord a => Array (TupleObj a b) -> Map a b
+toMap :: ∀ a b. Ord a => Array (TupleObj a b) -> Map a b
 toMap =  M.fromFoldable <<< map toTuple

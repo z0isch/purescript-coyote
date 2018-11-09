@@ -47,7 +47,7 @@ firebaseConsumer query = CR.consumer \game -> do
   query $ H.action $ SimpleComponent.GameUpdate game
   pure Nothing
 
-processMsgs :: forall a. Sub -> String ->  (SimpleComponent.Query ~> Aff) -> SimpleComponent.Message -> Aff (Maybe a)
+processMsgs :: ∀ a. Sub -> String ->  (SimpleComponent.Query ~> Aff) -> SimpleComponent.Message -> Aff (Maybe a)
 processMsgs sub baseUrl query = case _ of
   SimpleComponent.UnsubscribeFromGame -> do
     H.liftEffect $ deleteCookie cookieName

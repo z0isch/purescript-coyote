@@ -20,19 +20,19 @@ import Simple.JSON (class ReadForeign, class WriteForeign, E, read, write)
 
 foreign import _new :: EffectFn2 String Foreign Unit
 foreign import _subscribe :: EffectFn2 String (Foreign -> Effect Unit) Unit
-foreign import _update :: forall a b. Fn5 (a -> Either a b) (b -> Either a b) String Int (Foreign -> Effect Foreign) (EffectFnAff (Either Foreign Foreign))
+foreign import _update :: ∀ a b. Fn5 (a -> Either a b) (b -> Either a b) String Int (Foreign -> Effect Foreign) (EffectFnAff (Either Foreign Foreign))
 foreign import _get :: Fn1 String (EffectFnAff Foreign)
 
-subscribeToGame :: forall s. ReadForeign s => GameId -> (WebGameDTO s -> Effect Unit) -> Effect Unit
+subscribeToGame :: ∀ s. ReadForeign s => GameId -> (WebGameDTO s -> Effect Unit) -> Effect Unit
 subscribeToGame gId f = runEffectFn2 _subscribe gId \msg -> do
   case read msg of
     Left err -> error $ "Can't decode json webgame with: " <> show err
     Right game -> f game
 
-newGame :: forall s. WriteForeign s => GameId -> WebGameDTO s -> Effect Unit
+newGame :: ∀ s. WriteForeign s => GameId -> WebGameDTO s -> Effect Unit
 newGame gId s = runEffectFn2 _new gId (write s)
 
-updateGame :: forall s. ReadForeign s => WriteForeign s => GameId -> StateHash -> (WebGameDTO s -> Effect (WebGameDTO s)) -> Aff (Either (E (WebGameDTO s)) (E (WebGameDTO s)))
+updateGame :: ∀ s. ReadForeign s => WriteForeign s => GameId -> StateHash -> (WebGameDTO s -> Effect (WebGameDTO s)) -> Aff (Either (E (WebGameDTO s)) (E (WebGameDTO s)))
 updateGame gId stateHash f = bimap read read <$> fromEffectFnAff (runFn5 _update Left Right gId stateHash gameUpdate)
   where
     gameUpdate json = case read json of
@@ -41,7 +41,7 @@ updateGame gId stateHash f = bimap read read <$> fromEffectFnAff (runFn5 _update
         pure json
       Right g -> write <$> f g 
 
-getGame :: forall s. ReadForeign s => GameId -> Aff (Maybe (WebGameDTO s))
+getGame :: ∀ s. ReadForeign s => GameId -> Aff (Maybe (WebGameDTO s))
 getGame id = do
   json <- fromEffectFnAff $ runFn1 _get id
   case read json of

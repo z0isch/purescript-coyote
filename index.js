@@ -11,11 +11,22 @@ if (process.env.NODE_ENV === "production") {
     }
   }
   document.addEventListener("click", enableFullScreen, false);
-} else {
-  if (document.getElementById("coyote") !== null) {
-    document.getElementById("coyote").innerHTML = "";
-  }
 }
 
 require("./css/main.scss");
-require("./output/Main").main();
+
+function main() {
+  if (process.env.NODE_ENV === "development") require("./output/Main").main();
+  //We're building the optimized version here
+  else require("./output");
+}
+
+if (module.hot) {
+  module.hot.dispose(function() {});
+
+  module.hot.accept(function() {
+    document.getElementById("coyote").innerHTML = "";
+    main();
+  });
+}
+main();

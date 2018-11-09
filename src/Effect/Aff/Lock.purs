@@ -26,5 +26,5 @@ releaseLock (Lock v) = put unit v
 -- | Acquire the lock, perform some action while the lock is held, then
 -- release the lock. You can use this instead of manually calling 'acquireLock'
 -- and 'releaseLock'.
-withLock :: forall a. Lock -> Aff a -> Aff a
+withLock :: Lock -> Aff ~> Aff
 withLock lock action = finally (releaseLock lock) (acquireLock lock *> action)

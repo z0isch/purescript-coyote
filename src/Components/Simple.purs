@@ -287,7 +287,7 @@ ui = H.parentComponent
                 Right _ -> pure unit
             H.raise $ DrawCard c g
             H.modify_ _{waitingForCard= true}
-            H.fork $ countDown 3 *> waitForCard
+            H.fork $ countDown 3 *> waitForCard *> H.modify _{showingHand= true}
         pure next
   
       GameUpdate new next -> do
@@ -317,7 +317,7 @@ ui = H.parentComponent
       {waitingForCard} <- H.get
       when waitingForCard $ hasACard >>=
         if _
-        then H.modify_ _{showingHand= true, waitingForCard= false } 
+        then H.modify_ _{waitingForCard= false } 
         else liftAff (delay (Milliseconds 100.0)) *> waitForCard
     
     hasACard :: H.ParentDSL State Query ChildQuery ChildSlot Message Aff Boolean
@@ -345,5 +345,5 @@ showCard = case _ of
     Full.X2 -> "X2"
     Full.Night -> "0"
 
-hoistMaybe :: forall m a. Applicative m => Maybe a -> MaybeT m a
+hoistMaybe :: ∀ m a. Applicative m => Maybe a -> MaybeT m a
 hoistMaybe = MaybeT <<< pure

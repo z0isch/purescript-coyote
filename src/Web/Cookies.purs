@@ -33,9 +33,9 @@ secure :: Option CookiesOptions Boolean
 secure = opt "secure"
        
        
-foreign import _setCookie :: forall value opts. String -> value -> opts -> Effect Unit
+foreign import _setCookie :: ∀ value opts. String -> value -> opts -> Effect Unit
 
-foreign import _getCookie :: forall value. String -> Effect (Array value)
+foreign import _getCookie :: ∀ value. String -> Effect (Array value)
 
 -- |  Get cookie with specified name.
 getCookie :: String -> Effect (Maybe String)
@@ -49,10 +49,10 @@ getCookie key = do
 foreign import deleteCookie :: String -> Effect Unit
 
 -- | Set cookie with specified name and value. Last argument (opts) is a map of optional arguments such as expiration time.
-setCookie :: forall value. String -> value -> Maybe (Options CookiesOptions) -> Effect Unit
+setCookie :: ∀ value. String -> value -> Maybe (Options CookiesOptions) -> Effect Unit
 setCookie name value Nothing = _setCookie name value unit
 setCookie name value (Just opts) = _setCookie name value opts
 
 -- | Set cookie with specified name and value. No options to the cookie are specified.
-setSimpleCookie :: forall value. String -> value -> Effect Unit
+setSimpleCookie :: ∀ value. String -> value -> Effect Unit
 setSimpleCookie name value = _setCookie name value unit

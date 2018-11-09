@@ -152,7 +152,7 @@ nextPlayer gs@{currentPlayer, players} = (currentPlayer + 1 + addBy) `mod` numPl
 
 bleh = runStateT processTotal
 
-drawTop :: forall m r c.
+drawTop :: ∀ m r c.
   Bind m 
   => MonadState
       { deck :: Array c
@@ -174,7 +174,7 @@ drawTop = do
   modify_ _{deck= tail}
   pure head
 
-processTotal ::  forall m r r2.
+processTotal ::  ∀ m r r2.
   Bind m 
   => MonadState
       { deck :: Array Card
@@ -266,7 +266,7 @@ makeMove Coyote = do
           { players= M.update (Just <<< _{hand= [c]}) plNum g.players
           }
 
-shuffle :: forall a. Array a -> Effect (Array a)
+shuffle :: ∀ a. Array a -> Effect (Array a)
 shuffle xs = do
   ar <- Ref.new xs
   void $ for (A.range 0 (A.length xs - 1)) \i -> do
